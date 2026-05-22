@@ -119,7 +119,7 @@
   <div class="card">
     <div class="card-label">Temperature</div>
     <div class="card-value" id="temp-val">—</div>
-    <div class="card-unit">°C</div>
+    <div class="card-unit">°F</div>
   </div>
   <div class="card">
     <div class="card-label">Humidity</div>
@@ -163,7 +163,7 @@
       document.getElementById('co2-val').textContent  = fmt(data.co2_ppm);
       document.getElementById('pm25-val').textContent = fmt(data.pm25, 1);
       document.getElementById('pm10-val').textContent  = fmt(data.pm10, 1);
-      document.getElementById('temp-val').textContent  = fmt(data.temp_c, 1);
+      document.getElementById('temp-val').textContent  = fmt(data.temp_c != null ? data.temp_c * 9/5 + 32 : null, 1);
       document.getElementById('hum-val').textContent   = fmt(data.humidity_pct, 1);
 
       if (data.co2_ppm != null) {
@@ -254,7 +254,7 @@
         ...CHART_DEFAULTS,
         data: {
           labels,
-          datasets: [makeDataset('Temp °C', data.map(d => d.temp_c), 'rgb(34,197,94)')],
+          datasets: [makeDataset('Temp °F', data.map(d => d.temp_c != null ? d.temp_c * 9/5 + 32 : null), 'rgb(34,197,94)')],
         },
       });
     } catch (e) {

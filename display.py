@@ -58,10 +58,11 @@ class OLEDDisplay:
         draw.text((0, 48), pm10_str, fill="white", font=self._font_small)
 
     def _draw_screen_2(self, draw, data: dict) -> None:
-        temp = data.get("temp_c")
+        temp_c = data.get("temp_c")
+        temp = temp_c * 9 / 5 + 32 if temp_c is not None else None
         humidity = data.get("humidity_pct")
 
-        temp_str = f"Temp:  {temp:.1f} C" if temp is not None else "Temp:  --"
+        temp_str = f"Temp:  {temp:.1f} F" if temp is not None else "Temp:  --"
         hum_str = f"RH:    {humidity:.1f} %" if humidity is not None else "RH:    --"
 
         draw.text((0, 0), temp_str, fill="white", font=self._font_large)

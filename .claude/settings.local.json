@@ -19,7 +19,15 @@
       "Bash(grep -E \"smbus|serial|requests$\")",
       "Bash(systemctl --version)",
       "Bash(apt-cache policy *)",
-      "Bash(timedatectl status *)"
+      "Bash(timedatectl status *)",
+      "Bash(systemctl is-active *)",
+      "Bash(sudo ufw status)",
+      "Bash(sudo iptables -L INPUT -n --line-numbers)",
+      "Bash(sudo iptables -L FORWARD -n --line-numbers)",
+      "Bash(sudo iptables *)",
+      "Bash(ip addr *)",
+      "Bash(tailscale status *)",
+      "Bash(curl *)"
     ]
   }
 }
