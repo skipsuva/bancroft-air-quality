@@ -1,0 +1,5 @@
+smbus2
+pyserial
+luma.oled
+flask
+requests

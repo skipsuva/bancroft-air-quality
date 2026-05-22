@@ -1,0 +1,25 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(pip3 list *)",
+      "Bash(grep -iE \"flask$\")",
+      "Bash(python3 -c \"import smbus2; help\\(smbus2.i2c_msg\\)\")",
+      "Bash(python3 -c \"import smbus2; help\\(smbus2.SMBus.i2c_rdwr\\)\")",
+      "Bash(python3 -c \"import luma.oled; import luma.core; print\\('luma ok'\\)\")",
+      "Bash(python3 -c \"from luma.oled.device import sh1106; print\\('sh1106 ok'\\)\")",
+      "Bash(python3 -c \"from luma.core.interface.serial import i2c; help\\(i2c.__init__\\)\")",
+      "Bash(python3 -c \"from luma.core.render import canvas; print\\('canvas ok'\\)\")",
+      "Bash(python3 -c \"from PIL import ImageFont; print\\('PIL ok'\\)\")",
+      "Bash(python3 *)",
+      "Bash(pip3 show *)",
+      "Bash(pip3 install *)",
+      "Bash(apt-cache search *)",
+      "Bash(apt-cache show *)",
+      "Bash(pip3 --version)",
+      "Bash(grep -E \"smbus|serial|requests$\")",
+      "Bash(systemctl --version)",
+      "Bash(apt-cache policy *)",
+      "Bash(timedatectl status *)"
+    ]
+  }
+}

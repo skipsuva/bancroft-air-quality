@@ -1,0 +1,94 @@
+import logging
+import threading
+import time
+
+from PIL import ImageFont
+
+import config
+
+logger = logging.getLogger(__name__)
+
+
+def _co2_label(co2: float) -> str:
+    for threshold, label in config.CO2_LABELS:
+        if co2 < threshold:
+            return label
+    return "BAD!"
+
+
+class OLEDDisplay:
+    def __init__(self, state: dict, lock: threading.Lock) -> None:
+        self._state = state
+        self._lock = lock
+        self._device = None
+        self._screen_index = 0
+
+        try:
+            self._font_large = ImageFont.load_default(size=14)
+            self._font_small = ImageFont.load_default(size=11)
+        except TypeError:
+            self._font_large = ImageFont.load_default()
+            self._font_small = ImageFont.load_default()
+
+    def _init_device(self) -> None:
+        try:
+            from luma.core.interface.serial import i2c as luma_i2c
+            from luma.oled.device import sh1106
+
+            serial = luma_i2c(port=config.I2C_BUS, address=config.OLED_ADDR)
+            self._device = sh1106(serial)
+            logger.info("OLED initialized")
+        except Exception as e:
+            logger.warning("OLED init failed (display disabled): %s", e)
+            self._device = None
+
+    def _draw_screen_1(self, draw, data: dict) -> None:
+        co2 = data.get("co2_ppm")
+        pm25 = data.get("pm25")
+        pm10 = data.get("pm10")
+
+        co2_str = f"CO2: {co2:.0f} ppm" if co2 is not None else "CO2: --"
+        label = _co2_label(co2) if co2 is not None else ""
+        pm25_str = f"PM2.5: {pm25:.0f} ug/m3" if pm25 is not None else "PM2.5: --"
+        pm10_str = f"PM10:  {pm10:.0f} ug/m3" if pm10 is not None else "PM10:  --"
+
+        draw.text((0, 0), co2_str, fill="white", font=self._font_large)
+        draw.text((0, 16), f"[{label}]", fill="white", font=self._font_large)
+        draw.text((0, 34), pm25_str, fill="white", font=self._font_small)
+        draw.text((0, 48), pm10_str, fill="white", font=self._font_small)
+
+    def _draw_screen_2(self, draw, data: dict) -> None:
+        temp = data.get("temp_c")
+        humidity = data.get("humidity_pct")
+
+        temp_str = f"Temp:  {temp:.1f} C" if temp is not None else "Temp:  --"
+        hum_str = f"RH:    {humidity:.1f} %" if humidity is not None else "RH:    --"
+
+        draw.text((0, 0), temp_str, fill="white", font=self._font_large)
+        draw.text((0, 18), hum_str, fill="white", font=self._font_large)
+        draw.text((0, 50), "bancroft-air", fill="white", font=self._font_small)
+
+    def run(self) -> None:
+        self._init_device()
+
+        if self._device is None:
+            logger.info("Display thread exiting — no device")
+            return
+
+        from luma.core.render import canvas
+
+        while True:
+            with self._lock:
+                data = dict(self._state)
+
+            try:
+                with canvas(self._device) as draw:
+                    if self._screen_index == 0:
+                        self._draw_screen_1(draw, data)
+                    else:
+                        self._draw_screen_2(draw, data)
+            except Exception as e:
+                logger.error("Display render error: %s", e)
+
+            self._screen_index = 1 - self._screen_index
+            time.sleep(config.DISPLAY_CYCLE_SEC)

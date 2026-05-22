@@ -1,0 +1,17 @@
+[Unit]
+Description=Bancroft Air Quality Monitor
+After=network.target
+
+[Service]
+Type=simple
+User=skipsuva
+WorkingDirectory=/home/skipsuva/bancroft-air-quality
+ExecStart=/usr/bin/python3 /home/skipsuva/bancroft-air-quality/sensor_daemon.py
+Restart=on-failure
+RestartSec=10s
+StandardOutput=journal
+StandardError=journal
+TimeoutStartSec=30
+
+[Install]
+WantedBy=multi-user.target
