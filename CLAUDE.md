@@ -136,15 +136,25 @@ Checksum: `sum(frame[:-2]) == (frame[-2] << 8) | frame[-1]`
 
 ## Alert Thresholds (`config.py`)
 
-| Condition | Trigger | Priority |
-|---|---|---|
-| CO₂ high | >1000 ppm for 5+ min (30 consecutive 10s readings) | default |
-| CO₂ critical | >1500 ppm | high |
-| PM2.5 elevated | >25 µg/m³ | default |
-| PM2.5 unhealthy | >55 µg/m³ | high |
-| Daily summary | 08:00 local time | low |
+| Condition | Trigger | Streak required | Priority |
+|---|---|---|---|
+| CO₂ elevated | >1000 ppm | 30 readings = 5 min | default |
+| CO₂ critical | >1500 ppm | immediate | high |
+| PM2.5 elevated | >25 µg/m³ | 3 readings = 30s | default |
+| PM2.5 unhealthy | >55 µg/m³ | immediate | high |
+| PM10 elevated | >50 µg/m³ | 3 readings = 30s | default |
+| PM10 critical | >150 µg/m³ | immediate | high |
+| Daily summary | 08:00 local time | — | low |
 
-Cooldown: 30 minutes per condition key. `co2_high_streak` resets to 0 on any missed reading (not just clean readings).
+Cooldown: 30 minutes per condition key (separate key per alert type).
+
+**Streak counters** in `sensor_daemon.py`:
+- `co2_high_streak` — increments each reading where CO₂ > 1000 ppm; resets to 0 on any reading below threshold or missed read
+- `pm_elevated_streak` — increments each reading where PM2.5 > 25 **or** PM10 > 50; resets to 0 when both drop below warn levels or on missed read; shared by both PM2.5 and PM10 elevated alerts
+
+Both streaks are passed into `notifier.check_and_alert(reading, co2_high_streak, pm_elevated_streak)`.
+
+**ntfy topic:** `bancroft-air` on `https://ntfy.sh`. Subscribe in the ntfy app to receive alerts.
 
 ---
 
