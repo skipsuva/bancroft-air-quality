@@ -27,7 +27,9 @@
       "Bash(sudo iptables *)",
       "Bash(ip addr *)",
       "Bash(tailscale status *)",
-      "Bash(curl *)"
+      "Bash(curl *)",
+      "Bash(sqlite3 air_quality.db \"SELECT COUNT\\(*\\) as readings_1min FROM readings_1min; SELECT COUNT\\(*\\) as readings_10min FROM readings_10min; SELECT COUNT\\(*\\) as daily_summaries FROM daily_summaries;\")",
+      "Bash(sudo systemctl stop bancroft-air)"
     ]
   }
 }

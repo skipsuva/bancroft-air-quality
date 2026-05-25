@@ -116,6 +116,7 @@ def _compute_daily_summary(target_date: date) -> dict | None:
     temp_vals = [r["temp_c"] for r in readings if r.get("temp_c") is not None]
     hum_vals = [r["humidity_pct"] for r in readings if r.get("humidity_pct") is not None]
     pm25_vals = [r["pm25"] for r in readings if r.get("pm25") is not None]
+    pm10_vals = [r["pm10"] for r in readings if r.get("pm10") is not None]
 
     if not co2_vals:
         return None
@@ -136,6 +137,8 @@ def _compute_daily_summary(target_date: date) -> dict | None:
         "humidity_avg": round(sum(hum_vals) / len(hum_vals), 1) if hum_vals else None,
         "pm25_avg": round(sum(pm25_vals) / len(pm25_vals), 1) if pm25_vals else None,
         "pm25_max": round(max(pm25_vals), 0) if pm25_vals else None,
+        "pm10_avg": round(sum(pm10_vals) / len(pm10_vals), 1) if pm10_vals else None,
+        "pm10_max": round(max(pm10_vals), 0) if pm10_vals else None,
     }
 
 
@@ -155,6 +158,7 @@ def sensor_loop(notifier: Notifier) -> None:
     last_1min_write = datetime.now()
     last_10min_write = datetime.now()
     co2_high_streak = 0
+    pm_elevated_streak = 0
     last_summary_date: date | None = None
 
     try:
@@ -192,10 +196,17 @@ def sensor_loop(notifier: Notifier) -> None:
                 accum_1min.append(reading)
                 accum_10min.append(reading)
 
-                if co2 > config.CO2_WARN_PPM:
+                if co2 is not None and co2 > config.CO2_WARN_PPM:
                     co2_high_streak += 1
                 else:
                     co2_high_streak = 0
+
+                pm25_val = pm25 or 0
+                pm10_val = pm10 or 0
+                if pm25_val > config.PM25_WARN or pm10_val > config.PM10_WARN:
+                    pm_elevated_streak += 1
+                else:
+                    pm_elevated_streak = 0
 
                 try:
                     db.upsert_current(reading)
@@ -203,21 +214,23 @@ def sensor_loop(notifier: Notifier) -> None:
                     logger.error("DB upsert error: %s", e)
 
                 try:
-                    notifier.check_and_alert(reading, co2_high_streak)
+                    notifier.check_and_alert(reading, co2_high_streak, pm_elevated_streak)
                 except Exception as e:
                     logger.error("Notifier error: %s", e)
 
                 logger.debug(
-                    "CO2=%s pm25=%s pm10=%s temp=%s hum=%s streak=%d",
+                    "CO2=%s pm25=%s pm10=%s temp=%s hum=%s co2_streak=%d pm_streak=%d",
                     f"{co2:.0f}" if co2 is not None else "N/A",
                     f"{pm25:.0f}" if pm25 is not None else "N/A",
                     f"{pm10:.0f}" if pm10 is not None else "N/A",
                     f"{temp_c:.1f}" if temp_c is not None else "N/A",
                     f"{humidity:.1f}" if humidity is not None else "N/A",
                     co2_high_streak,
+                    pm_elevated_streak,
                 )
             else:
                 co2_high_streak = 0
+                pm_elevated_streak = 0
 
             if (now - last_1min_write).total_seconds() >= 60 and accum_1min:
                 try:
