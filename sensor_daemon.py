@@ -173,15 +173,15 @@ def sensor_loop(notifier: Notifier) -> None:
             except Exception as e:
                 logger.error("PMS5003 read error: %s", e)
 
-            if scd and pms:
-                co2, temp_c, humidity = scd
-                pm25, pm10 = pms
+            if scd or pms:
+                co2, temp_c, humidity = scd if scd else (None, None, None)
+                pm25, pm10 = pms if pms else (None, None)
 
                 reading = {
                     "timestamp": now.isoformat(timespec="seconds"),
                     "co2_ppm": co2,
-                    "temp_c": round(temp_c, 2),
-                    "humidity_pct": round(humidity, 2),
+                    "temp_c": round(temp_c, 2) if temp_c is not None else None,
+                    "humidity_pct": round(humidity, 2) if humidity is not None else None,
                     "pm25": pm25,
                     "pm10": pm10,
                 }
@@ -208,8 +208,13 @@ def sensor_loop(notifier: Notifier) -> None:
                     logger.error("Notifier error: %s", e)
 
                 logger.debug(
-                    "CO2=%.0f pm25=%.0f pm10=%.0f temp=%.1f hum=%.1f streak=%d",
-                    co2, pm25, pm10, temp_c, humidity, co2_high_streak,
+                    "CO2=%s pm25=%s pm10=%s temp=%s hum=%s streak=%d",
+                    f"{co2:.0f}" if co2 is not None else "N/A",
+                    f"{pm25:.0f}" if pm25 is not None else "N/A",
+                    f"{pm10:.0f}" if pm10 is not None else "N/A",
+                    f"{temp_c:.1f}" if temp_c is not None else "N/A",
+                    f"{humidity:.1f}" if humidity is not None else "N/A",
+                    co2_high_streak,
                 )
             else:
                 co2_high_streak = 0
