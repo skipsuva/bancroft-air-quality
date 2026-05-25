@@ -26,9 +26,10 @@ def create_app(state: dict, lock: threading.Lock) -> Flask:
 
     @app.route("/api/history")
     def api_history():
-        range_str = request.args.get("range", "24h")
-        if range_str not in ("24h", "7d", "30d"):
-            return jsonify({"error": "invalid range — use 24h, 7d, or 30d"}), 400
+        range_str = request.args.get("range", "1d")
+        valid = {"1d", "1w", "1m", "3m", "6m", "1y", "all", "24h", "7d", "30d"}
+        if range_str not in valid:
+            return jsonify({"error": "invalid range — use 1d, 1w, 1m, 3m, 6m, 1y, or all"}), 400
         rows = db.get_history(range_str)
         return jsonify(rows)
 

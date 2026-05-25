@@ -138,26 +138,86 @@ def get_current() -> dict | None:
 
 
 def get_history(range_str: str) -> list[dict]:
-    now = datetime.now()
-    if range_str == "24h":
-        cutoff = (now - timedelta(hours=24)).isoformat()
-        table = "readings_1min"
-    elif range_str == "7d":
-        cutoff = (now - timedelta(days=7)).isoformat()
-        table = "readings_10min"
-    elif range_str == "30d":
-        cutoff = (now - timedelta(days=30)).isoformat()
-        table = "readings_10min"
-    else:
-        return []
+    # Backward-compat aliases
+    _aliases = {"24h": "1d", "7d": "1w", "30d": "1m"}
+    range_str = _aliases.get(range_str, range_str)
 
+    now = datetime.now()
     con = get_connection()
     try:
-        rows = con.execute(
-            f"SELECT * FROM {table} WHERE timestamp >= ? ORDER BY timestamp",
-            (cutoff,),
-        ).fetchall()
-        return [dict(r) for r in rows]
+        if range_str == "1d":
+            cutoff = (now - timedelta(hours=24)).isoformat()
+            rows = con.execute(
+                "SELECT * FROM readings_1min WHERE timestamp >= ? ORDER BY timestamp",
+                (cutoff,),
+            ).fetchall()
+            return [dict(r) for r in rows]
+
+        elif range_str == "1w":
+            cutoff = (now - timedelta(days=7)).isoformat()
+            rows = con.execute(
+                "SELECT * FROM readings_10min WHERE timestamp >= ? ORDER BY timestamp",
+                (cutoff,),
+            ).fetchall()
+            return [dict(r) for r in rows]
+
+        elif range_str == "1m":
+            cutoff = (now - timedelta(days=30)).isoformat()
+            rows = con.execute(
+                "SELECT * FROM readings_10min WHERE timestamp >= ? ORDER BY timestamp",
+                (cutoff,),
+            ).fetchall()
+            return [dict(r) for r in rows]
+
+        elif range_str in ("3m", "6m"):
+            days = 90 if range_str == "3m" else 180
+            cutoff = (now - timedelta(days=days)).isoformat()
+            rows = con.execute(
+                """SELECT strftime('%Y-%m-%dT%H:00:00', timestamp) AS timestamp,
+                          AVG(co2_ppm)      AS co2_ppm,
+                          AVG(temp_c)       AS temp_c,
+                          AVG(humidity_pct) AS humidity_pct,
+                          AVG(pm25)         AS pm25,
+                          AVG(pm10)         AS pm10
+                   FROM readings_10min
+                   WHERE timestamp >= ?
+                   GROUP BY 1
+                   ORDER BY 1""",
+                (cutoff,),
+            ).fetchall()
+            return [dict(r) for r in rows]
+
+        elif range_str == "1y":
+            cutoff = (now - timedelta(days=365)).date().isoformat()
+            rows = con.execute(
+                """SELECT date       AS timestamp,
+                          co2_avg    AS co2_ppm,
+                          temp_avg   AS temp_c,
+                          humidity_avg AS humidity_pct,
+                          pm25_avg   AS pm25,
+                          NULL       AS pm10
+                   FROM daily_summaries
+                   WHERE date >= ?
+                   ORDER BY date""",
+                (cutoff,),
+            ).fetchall()
+            return [dict(r) for r in rows]
+
+        elif range_str == "all":
+            rows = con.execute(
+                """SELECT date       AS timestamp,
+                          co2_avg    AS co2_ppm,
+                          temp_avg   AS temp_c,
+                          humidity_avg AS humidity_pct,
+                          pm25_avg   AS pm25,
+                          NULL       AS pm10
+                   FROM daily_summaries
+                   ORDER BY date""",
+            ).fetchall()
+            return [dict(r) for r in rows]
+
+        else:
+            return []
     finally:
         con.close()
 

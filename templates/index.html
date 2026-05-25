@@ -87,8 +87,33 @@
     }
     .chart-wrap { position: relative; height: 160px; }
 
+    .range-bar {
+      display: flex;
+      gap: 4px;
+      margin-bottom: 14px;
+    }
+    .range-btn {
+      padding: 4px 10px;
+      border-radius: 20px;
+      border: 1px solid #ddd;
+      background: #fff;
+      font-size: 0.72rem;
+      font-weight: 600;
+      color: #555;
+      cursor: pointer;
+      letter-spacing: 0.03em;
+      transition: background 0.15s, color 0.15s, border-color 0.15s;
+    }
+    .range-btn:hover { border-color: #aaa; color: #222; }
+    .range-btn.active {
+      background: #1a1a2e;
+      color: #fff;
+      border-color: #1a1a2e;
+    }
+
     @media (max-width: 480px) {
       .card-value { font-size: 1.6rem; }
+      .range-btn { padding: 3px 7px; font-size: 0.68rem; }
     }
   </style>
 </head>
@@ -128,16 +153,26 @@
   </div>
 </div>
 
+<div class="range-bar">
+  <button class="range-btn active" data-range="1d">1D</button>
+  <button class="range-btn" data-range="1w">1W</button>
+  <button class="range-btn" data-range="1m">1M</button>
+  <button class="range-btn" data-range="3m">3M</button>
+  <button class="range-btn" data-range="6m">6M</button>
+  <button class="range-btn" data-range="1y">1Y</button>
+  <button class="range-btn" data-range="all">ALL</button>
+</div>
+
 <div class="chart-section">
-  <div class="chart-title">CO₂ — last 24 hours</div>
+  <div class="chart-title" id="title-co2">CO₂ — last 24 hours</div>
   <div class="chart-wrap"><canvas id="co2-chart"></canvas></div>
 </div>
 <div class="chart-section">
-  <div class="chart-title">PM2.5 — last 24 hours</div>
+  <div class="chart-title" id="title-pm25">PM2.5 — last 24 hours</div>
   <div class="chart-wrap"><canvas id="pm25-chart"></canvas></div>
 </div>
 <div class="chart-section">
-  <div class="chart-title">Temperature — last 24 hours</div>
+  <div class="chart-title" id="title-temp">Temperature — last 24 hours</div>
   <div class="chart-wrap"><canvas id="temp-chart"></canvas></div>
 </div>
 
@@ -208,6 +243,33 @@
   };
 
   let charts = {};
+  let currentRange = '1d';
+  let chartRefreshTimer = null;
+
+  const RANGE_LABELS = {
+    '1d': 'last 24 hours',
+    '1w': 'last 7 days',
+    '1m': 'last 30 days',
+    '3m': 'last 3 months',
+    '6m': 'last 6 months',
+    '1y': 'last year',
+    'all': 'all time',
+  };
+
+  function formatLabel(ts, range) {
+    const dt = new Date(ts);
+    if (range === '1d') {
+      return dt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    } else if (range === '1w') {
+      return dt.toLocaleDateString([], { weekday: 'short' }) + ' ' +
+             dt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    } else if (range === '1m' || range === '3m' || range === '6m') {
+      return dt.toLocaleDateString([], { month: 'short', day: 'numeric' });
+    } else {
+      // 1y, all
+      return dt.toLocaleDateString([], { month: 'short', year: 'numeric' });
+    }
+  }
 
   function makeDataset(label, values, color) {
     return {
@@ -221,15 +283,20 @@
     };
   }
 
-  async function loadCharts() {
-    try {
-      const data = await fetch('/api/history?range=24h').then(r => r.json());
-      if (!data.length) return;
+  function updateChartTitles(range) {
+    const suffix = RANGE_LABELS[range] || range;
+    document.getElementById('title-co2').textContent  = `CO₂ — ${suffix}`;
+    document.getElementById('title-pm25').textContent = `PM2.5 — ${suffix}`;
+    document.getElementById('title-temp').textContent = `Temperature — ${suffix}`;
+  }
 
-      const labels = data.map(d => {
-        const dt = new Date(d.timestamp);
-        return dt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-      });
+  async function loadCharts(range) {
+    range = range || currentRange;
+    try {
+      const data = await fetch(`/api/history?range=${range}`).then(r => r.json());
+      if (!Array.isArray(data) || !data.length) return;
+
+      const labels = data.map(d => formatLabel(d.timestamp, range));
 
       if (charts.co2) charts.co2.destroy();
       charts.co2 = new Chart(document.getElementById('co2-chart'), {
@@ -262,10 +329,26 @@
     }
   }
 
+  function setRange(range) {
+    currentRange = range;
+    document.querySelectorAll('.range-btn').forEach(btn => {
+      btn.classList.toggle('active', btn.dataset.range === range);
+    });
+    updateChartTitles(range);
+    loadCharts(range);
+    // Reset auto-refresh timer so it counts from now
+    if (chartRefreshTimer) clearInterval(chartRefreshTimer);
+    chartRefreshTimer = setInterval(() => loadCharts(currentRange), 60000);
+  }
+
+  document.querySelectorAll('.range-btn').forEach(btn => {
+    btn.addEventListener('click', () => setRange(btn.dataset.range));
+  });
+
   refreshCurrent();
-  loadCharts();
+  loadCharts('1d');
   setInterval(refreshCurrent, 10000);
-  setInterval(loadCharts, 60000);
+  chartRefreshTimer = setInterval(() => loadCharts(currentRange), 60000);
 </script>
 </body>
 </html>
