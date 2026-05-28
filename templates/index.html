@@ -244,6 +244,9 @@
       <div class="node-co2" id="ov-co2-{{ node }}">—</div>
       <div class="node-co2-unit">ppm CO₂</div>
       <div class="node-badge" id="ov-badge-{{ node }}">—</div>
+      <div style="position:relative;height:40px;margin-top:8px;">
+        <canvas id="ov-spark-{{ node }}"></canvas>
+      </div>
       <div class="node-meta">
         <span id="ov-temp-{{ node }}">—</span>
         <span id="ov-hum-{{ node }}">—</span>
@@ -564,6 +567,71 @@
     chartRefreshTimer = setInterval(() => loadCharts(currentRange), 60000);
   }
 
+  // ── Sparklines ────────────────────────────────────────────────────────────
+  const sparkCharts = {};
+
+  async function loadSparklines() {
+    let rows;
+    try {
+      rows = await fetch('/api/history?range=2h').then(r => r.json());
+    } catch (e) {
+      console.warn('loadSparklines error:', e);
+      return;
+    }
+
+    // Group by node
+    const byNode = {};
+    rows.forEach(r => {
+      if (!byNode[r.node]) byNode[r.node] = [];
+      byNode[r.node].push(r);
+    });
+
+    NODES.forEach(node => {
+      const nodeRows = byNode[node] || [];
+      const labels = nodeRows.map(r => r.timestamp);
+      const values = nodeRows.map(r => r.co2_ppm);
+
+      // Pick line color from the latest CO₂ value
+      const lastVal = values.filter(v => v != null).at(-1);
+      const lineColor = lastVal != null ? co2Status(lastVal).color : '#aaa';
+
+      const canvas = document.getElementById(`ov-spark-${node}`);
+      if (!canvas) return;
+
+      if (sparkCharts[node]) {
+        sparkCharts[node].data.labels = labels;
+        sparkCharts[node].data.datasets[0].data = values;
+        sparkCharts[node].data.datasets[0].borderColor = lineColor;
+        sparkCharts[node].update('none');
+      } else {
+        sparkCharts[node] = new Chart(canvas, {
+          type: 'line',
+          data: {
+            labels,
+            datasets: [{
+              data: values,
+              borderColor: lineColor,
+              borderWidth: 1.5,
+              tension: 0.3,
+              pointRadius: 0,
+              fill: false,
+            }],
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            animation: false,
+            plugins: { legend: { display: false }, tooltip: { enabled: false } },
+            scales: {
+              x: { display: false },
+              y: { display: false, beginAtZero: false },
+            },
+          },
+        });
+      }
+    });
+  }
+
   // ── Wire up controls ───────────────────────────────────────────────────────
   document.querySelectorAll('.tab-btn').forEach(btn => {
     btn.addEventListener('click', () => setTab(btn.dataset.tab));
@@ -576,6 +644,8 @@
   // ── Boot ───────────────────────────────────────────────────────────────────
   refreshCurrent();
   setInterval(refreshCurrent, 10000);
+  loadSparklines();
+  setInterval(loadSparklines, 60000);
 </script>
 </body>
 </html>
