@@ -13,9 +13,11 @@ def create_app(state: dict, lock: threading.Lock) -> Flask:
     app = Flask(__name__)
     app.logger.setLevel(logging.WARNING)
 
+    _web_labels = {**config.NODE_LABELS, "toddler": "Mari's Room", "wifesoffice": "Em's Office"}
+
     @app.route("/")
     def index():
-        return render_template("index.html", nodes=config.NODES, node_labels=config.NODE_LABELS)
+        return render_template("index.html", nodes=config.NODES, node_labels=_web_labels)
 
     @app.route("/api/now")
     def api_now():
