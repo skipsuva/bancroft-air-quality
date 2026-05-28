@@ -1,0 +1,13 @@
+[Unit]
+Description=Bancroft Air MQTT Listener
+After=network.target mosquitto.service
+
+[Service]
+ExecStart=/usr/bin/python3 /home/skipsuva/bancroft-air-quality/mqtt_listener.py
+WorkingDirectory=/home/skipsuva/bancroft-air-quality
+Restart=always
+RestartSec=10
+User=skipsuva
+
+[Install]
+WantedBy=multi-user.target

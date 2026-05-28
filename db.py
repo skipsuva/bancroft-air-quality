@@ -11,7 +11,8 @@ CREATE TABLE IF NOT EXISTS readings_1min (
     temp_c       REAL,
     humidity_pct REAL,
     pm25         REAL,
-    pm10         REAL
+    pm10         REAL,
+    node         TEXT DEFAULT 'office'
 )
 """
 
@@ -23,7 +24,8 @@ CREATE TABLE IF NOT EXISTS readings_10min (
     temp_c       REAL,
     humidity_pct REAL,
     pm25         REAL,
-    pm10         REAL
+    pm10         REAL,
+    node         TEXT DEFAULT 'office'
 )
 """
 
@@ -53,12 +55,44 @@ CREATE TABLE IF NOT EXISTS current_reading (
 )
 """
 
+_CREATE_NODE_CURRENT = """
+CREATE TABLE IF NOT EXISTS node_current (
+    node         TEXT PRIMARY KEY,
+    timestamp    TEXT,
+    co2_ppm      REAL,
+    temp_c       REAL,
+    humidity_pct REAL,
+    pm25         REAL,
+    pm10         REAL
+)
+"""
+
 
 def get_connection() -> sqlite3.Connection:
     con = sqlite3.connect(config.DB_PATH)
     con.row_factory = sqlite3.Row
     con.execute("PRAGMA journal_mode=WAL")
     return con
+
+
+def _migrate(con: sqlite3.Connection) -> None:
+    """Add new columns to existing tables that predate schema updates."""
+    # PRAGMA table_info returns rows: (cid, name, type, notnull, dflt_value, pk)
+    existing = {
+        row[1]
+        for row in con.execute("PRAGMA table_info(readings_1min)").fetchall()
+    }
+    if "node" not in existing:
+        con.execute("ALTER TABLE readings_1min ADD COLUMN node TEXT DEFAULT 'office'")
+
+    existing = {
+        row[1]
+        for row in con.execute("PRAGMA table_info(readings_10min)").fetchall()
+    }
+    if "node" not in existing:
+        con.execute("ALTER TABLE readings_10min ADD COLUMN node TEXT DEFAULT 'office'")
+
+    con.commit()
 
 
 def init_db() -> None:
@@ -68,7 +102,9 @@ def init_db() -> None:
         con.execute(_CREATE_READINGS_10MIN)
         con.execute(_CREATE_DAILY_SUMMARIES)
         con.execute(_CREATE_CURRENT)
+        con.execute(_CREATE_NODE_CURRENT)
         con.commit()
+        _migrate(con)
     finally:
         con.close()
     prune_old_readings()
@@ -85,6 +121,7 @@ def prune_old_readings() -> None:
 
 
 def upsert_current(reading: dict) -> None:
+    """Upsert the single-row office current reading (legacy, used by sensor_daemon)."""
     con = get_connection()
     try:
         con.execute(
@@ -98,16 +135,42 @@ def upsert_current(reading: dict) -> None:
         con.close()
 
 
+def upsert_node_current(reading: dict) -> None:
+    """Upsert the latest reading for a specific node (keyed by node name)."""
+    con = get_connection()
+    try:
+        con.execute(
+            """INSERT OR REPLACE INTO node_current
+               (node, timestamp, co2_ppm, temp_c, humidity_pct, pm25, pm10)
+               VALUES (:node, :timestamp, :co2_ppm, :temp_c, :humidity_pct, :pm25, :pm10)""",
+            reading,
+        )
+        con.commit()
+    finally:
+        con.close()
+
+
+def get_all_node_current() -> dict:
+    """Return a dict keyed by node name with each node's latest reading."""
+    con = get_connection()
+    try:
+        rows = con.execute("SELECT * FROM node_current").fetchall()
+        return {row["node"]: dict(row) for row in rows}
+    finally:
+        con.close()
+
+
 def insert_reading(table: str, reading: dict) -> None:
     if table not in ("readings_1min", "readings_10min"):
         raise ValueError(f"Unknown table: {table}")
+    node = reading.get("node", "office")
     con = get_connection()
     try:
         con.execute(
             f"""INSERT INTO {table}
-                (timestamp, co2_ppm, temp_c, humidity_pct, pm25, pm10)
-                VALUES (:timestamp, :co2_ppm, :temp_c, :humidity_pct, :pm25, :pm10)""",
-            reading,
+                (timestamp, co2_ppm, temp_c, humidity_pct, pm25, pm10, node)
+                VALUES (:timestamp, :co2_ppm, :temp_c, :humidity_pct, :pm25, :pm10, :node)""",
+            {**reading, "node": node},
         )
         con.commit()
     finally:
@@ -129,6 +192,7 @@ def insert_daily_summary(summary: dict) -> None:
 
 
 def get_current() -> dict | None:
+    """Return the office node's latest current reading (legacy fallback for /api/now)."""
     con = get_connection()
     try:
         row = con.execute("SELECT * FROM current_reading WHERE id = 1").fetchone()
@@ -137,10 +201,18 @@ def get_current() -> dict | None:
         con.close()
 
 
-def get_history(range_str: str) -> list[dict]:
+def get_history(range_str: str, node: str | None = None) -> list[dict]:
     # Backward-compat aliases
     _aliases = {"24h": "1d", "7d": "1w", "30d": "1m"}
     range_str = _aliases.get(range_str, range_str)
+
+    # Node filter clause
+    if node:
+        node_clause = "AND node = ?"
+        node_param: tuple = (node,)
+    else:
+        node_clause = ""
+        node_param = ()
 
     now = datetime.now()
     con = get_connection()
@@ -148,24 +220,24 @@ def get_history(range_str: str) -> list[dict]:
         if range_str == "1d":
             cutoff = (now - timedelta(hours=24)).isoformat()
             rows = con.execute(
-                "SELECT * FROM readings_1min WHERE timestamp >= ? ORDER BY timestamp",
-                (cutoff,),
+                f"SELECT * FROM readings_1min WHERE timestamp >= ? {node_clause} ORDER BY timestamp",
+                (cutoff,) + node_param,
             ).fetchall()
             return [dict(r) for r in rows]
 
         elif range_str == "1w":
             cutoff = (now - timedelta(days=7)).isoformat()
             rows = con.execute(
-                "SELECT * FROM readings_10min WHERE timestamp >= ? ORDER BY timestamp",
-                (cutoff,),
+                f"SELECT * FROM readings_10min WHERE timestamp >= ? {node_clause} ORDER BY timestamp",
+                (cutoff,) + node_param,
             ).fetchall()
             return [dict(r) for r in rows]
 
         elif range_str == "1m":
             cutoff = (now - timedelta(days=30)).isoformat()
             rows = con.execute(
-                "SELECT * FROM readings_10min WHERE timestamp >= ? ORDER BY timestamp",
-                (cutoff,),
+                f"SELECT * FROM readings_10min WHERE timestamp >= ? {node_clause} ORDER BY timestamp",
+                (cutoff,) + node_param,
             ).fetchall()
             return [dict(r) for r in rows]
 
@@ -173,21 +245,25 @@ def get_history(range_str: str) -> list[dict]:
             days = 90 if range_str == "3m" else 180
             cutoff = (now - timedelta(days=days)).isoformat()
             rows = con.execute(
-                """SELECT strftime('%Y-%m-%dT%H:00:00', timestamp) AS timestamp,
+                f"""SELECT strftime('%Y-%m-%dT%H:00:00', timestamp) AS timestamp,
                           AVG(co2_ppm)      AS co2_ppm,
                           AVG(temp_c)       AS temp_c,
                           AVG(humidity_pct) AS humidity_pct,
                           AVG(pm25)         AS pm25,
-                          AVG(pm10)         AS pm10
+                          AVG(pm10)         AS pm10,
+                          node
                    FROM readings_10min
-                   WHERE timestamp >= ?
-                   GROUP BY 1
+                   WHERE timestamp >= ? {node_clause}
+                   GROUP BY strftime('%Y-%m-%dT%H:00:00', timestamp), node
                    ORDER BY 1""",
-                (cutoff,),
+                (cutoff,) + node_param,
             ).fetchall()
             return [dict(r) for r in rows]
 
         elif range_str == "1y":
+            # daily_summaries is office-only; skip for other nodes
+            if node and node != "office":
+                return []
             cutoff = (now - timedelta(days=365)).date().isoformat()
             rows = con.execute(
                 """SELECT date       AS timestamp,
@@ -195,7 +271,8 @@ def get_history(range_str: str) -> list[dict]:
                           temp_avg   AS temp_c,
                           humidity_avg AS humidity_pct,
                           pm25_avg   AS pm25,
-                          NULL       AS pm10
+                          NULL       AS pm10,
+                          'office'   AS node
                    FROM daily_summaries
                    WHERE date >= ?
                    ORDER BY date""",
@@ -204,13 +281,16 @@ def get_history(range_str: str) -> list[dict]:
             return [dict(r) for r in rows]
 
         elif range_str == "all":
+            if node and node != "office":
+                return []
             rows = con.execute(
                 """SELECT date       AS timestamp,
                           co2_avg    AS co2_ppm,
                           temp_avg   AS temp_c,
                           humidity_avg AS humidity_pct,
                           pm25_avg   AS pm25,
-                          NULL       AS pm10
+                          NULL       AS pm10,
+                          'office'   AS node
                    FROM daily_summaries
                    ORDER BY date""",
             ).fetchall()
@@ -222,13 +302,13 @@ def get_history(range_str: str) -> list[dict]:
         con.close()
 
 
-def get_readings_for_date(target_date: date) -> list[dict]:
+def get_readings_for_date(target_date: date, node: str = "office") -> list[dict]:
     date_str = target_date.isoformat()
     con = get_connection()
     try:
         rows = con.execute(
-            "SELECT * FROM readings_1min WHERE timestamp LIKE ? ORDER BY timestamp",
-            (f"{date_str}%",),
+            "SELECT * FROM readings_1min WHERE timestamp LIKE ? AND node = ? ORDER BY timestamp",
+            (f"{date_str}%", node),
         ).fetchall()
         return [dict(r) for r in rows]
     finally:

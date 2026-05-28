@@ -1,9 +1,11 @@
+import json
 import logging
 import signal
 import threading
 import time
 from datetime import date, datetime, timedelta
 
+import paho.mqtt.client as mqtt
 import smbus2
 
 import config
@@ -97,18 +99,32 @@ def _pms5003_read(ser) -> tuple[float, float] | None:
     return pm25, pm10
 
 
-def _average(readings: list[dict]) -> dict:
+def _average(readings: list[dict], node: str = "office") -> dict:
     keys = ["co2_ppm", "temp_c", "humidity_pct", "pm25", "pm10"]
     result: dict = {}
     for k in keys:
         vals = [r[k] for r in readings if r.get(k) is not None]
         result[k] = round(sum(vals) / len(vals), 2) if vals else None
     result["timestamp"] = readings[-1]["timestamp"]
+    result["node"] = node
     return result
 
 
-def _compute_daily_summary(target_date: date) -> dict | None:
-    readings = db.get_readings_for_date(target_date)
+def _mqtt_connect() -> mqtt.Client | None:
+    """Create and connect an MQTT client; return None on failure (non-fatal)."""
+    try:
+        client = mqtt.Client(callback_api_version=mqtt.CallbackAPIVersion.VERSION2)
+        client.connect(config.MQTT_BROKER, config.MQTT_PORT, keepalive=60)
+        client.loop_start()
+        logger.info("MQTT connected to %s:%d", config.MQTT_BROKER, config.MQTT_PORT)
+        return client
+    except Exception as e:
+        logger.warning("MQTT connect failed (will retry on next 1min write): %s", e)
+        return None
+
+
+def _compute_daily_summary(target_date: date, node: str = "office") -> dict | None:
+    readings = db.get_readings_for_date(target_date, node=node)
     if not readings:
         return None
 
@@ -153,6 +169,8 @@ def sensor_loop(notifier: Notifier) -> None:
     except Exception as e:
         logger.error("SCD40 init failed: %s", e)
 
+    mqtt_client = _mqtt_connect()
+
     accum_1min: list[dict] = []
     accum_10min: list[dict] = []
     last_1min_write = datetime.now()
@@ -188,6 +206,7 @@ def sensor_loop(notifier: Notifier) -> None:
                     "humidity_pct": round(humidity, 2) if humidity is not None else None,
                     "pm25": pm25,
                     "pm10": pm10,
+                    "node": "office",
                 }
 
                 with _state_lock:
@@ -210,11 +229,12 @@ def sensor_loop(notifier: Notifier) -> None:
 
                 try:
                     db.upsert_current(reading)
+                    db.upsert_node_current(reading)
                 except Exception as e:
                     logger.error("DB upsert error: %s", e)
 
                 try:
-                    notifier.check_and_alert(reading, co2_high_streak, pm_elevated_streak)
+                    notifier.check_and_alert(reading, co2_high_streak, pm_elevated_streak, node="office")
                 except Exception as e:
                     logger.error("Notifier error: %s", e)
 
@@ -233,17 +253,39 @@ def sensor_loop(notifier: Notifier) -> None:
                 pm_elevated_streak = 0
 
             if (now - last_1min_write).total_seconds() >= 60 and accum_1min:
+                avg = _average(accum_1min, node="office")
                 try:
-                    db.insert_reading("readings_1min", _average(accum_1min))
+                    db.insert_reading("readings_1min", avg)
                     logger.info("Wrote 1min avg (%d readings)", len(accum_1min))
                 except Exception as e:
                     logger.error("DB 1min insert error: %s", e)
+
+                # Publish to MQTT; reconnect lazily if needed
+                try:
+                    if mqtt_client is None:
+                        mqtt_client = _mqtt_connect()
+                    if mqtt_client is not None:
+                        payload = json.dumps({
+                            "node":      "office",
+                            "co2":       avg["co2_ppm"],
+                            "temp_c":    avg["temp_c"],
+                            "humidity":  avg["humidity_pct"],
+                            "pm25":      avg["pm25"],
+                            "pm10":      avg["pm10"],
+                            "timestamp": avg["timestamp"],
+                        })
+                        mqtt_client.publish(config.MQTT_TOPIC_PUBLISH, payload, qos=0)
+                        logger.debug("MQTT published to %s", config.MQTT_TOPIC_PUBLISH)
+                except Exception as e:
+                    logger.warning("MQTT publish failed: %s", e)
+                    mqtt_client = None  # will reconnect next cycle
+
                 accum_1min.clear()
                 last_1min_write = now
 
             if (now - last_10min_write).total_seconds() >= 600 and accum_10min:
                 try:
-                    db.insert_reading("readings_10min", _average(accum_10min))
+                    db.insert_reading("readings_10min", _average(accum_10min, node="office"))
                     logger.info("Wrote 10min avg (%d readings)", len(accum_10min))
                 except Exception as e:
                     logger.error("DB 10min insert error: %s", e)
@@ -253,11 +295,16 @@ def sensor_loop(notifier: Notifier) -> None:
             if now.hour >= config.SUMMARY_HOUR and last_summary_date != now.date():
                 yesterday = now.date() - timedelta(days=1)
                 try:
-                    summary = _compute_daily_summary(yesterday)
-                    if summary:
-                        db.insert_daily_summary(summary)
-                        notifier.send_daily_summary(summary)
-                        logger.info("Daily summary sent for %s", yesterday)
+                    summaries = {}
+                    for node in config.NODES:
+                        s = _compute_daily_summary(yesterday, node=node)
+                        if s:
+                            summaries[node] = s
+                    if summaries:
+                        if "office" in summaries:
+                            db.insert_daily_summary(summaries["office"])
+                        notifier.send_daily_summary(summaries)
+                        logger.info("Daily summary sent for %s (%d nodes)", yesterday, len(summaries))
                 except Exception as e:
                     logger.error("Daily summary error: %s", e)
                 last_summary_date = now.date()
@@ -267,6 +314,12 @@ def sensor_loop(notifier: Notifier) -> None:
     finally:
         bus.close()
         ser.close()
+        if mqtt_client is not None:
+            try:
+                mqtt_client.loop_stop()
+                mqtt_client.disconnect()
+            except Exception:
+                pass
 
 
 def main() -> None:

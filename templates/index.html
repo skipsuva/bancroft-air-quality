@@ -13,7 +13,7 @@
       background: #f0f2f5;
       color: #1a1a2e;
       padding: 16px;
-      max-width: 900px;
+      max-width: 960px;
       margin: 0 auto;
     }
 
@@ -21,28 +21,125 @@
       display: flex;
       justify-content: space-between;
       align-items: baseline;
-      margin-bottom: 20px;
+      margin-bottom: 16px;
       flex-wrap: wrap;
       gap: 4px;
     }
     header h1 { font-size: 1.4rem; font-weight: 700; letter-spacing: -0.5px; }
     #last-updated { font-size: 0.8rem; color: #666; }
 
-    .cards {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-      gap: 12px;
-      margin-bottom: 24px;
+    /* ── Room tabs ── */
+    .tab-bar {
+      display: flex;
+      gap: 4px;
+      flex-wrap: wrap;
+      margin-bottom: 18px;
+    }
+    .tab-btn {
+      padding: 6px 14px;
+      border-radius: 20px;
+      border: 1px solid #ddd;
+      background: #fff;
+      font-size: 0.78rem;
+      font-weight: 600;
+      color: #555;
+      cursor: pointer;
+      letter-spacing: 0.02em;
+      transition: background 0.15s, color 0.15s, border-color 0.15s;
+    }
+    .tab-btn:hover { border-color: #aaa; color: #222; }
+    .tab-btn.active {
+      background: #1a1a2e;
+      color: #fff;
+      border-color: #1a1a2e;
     }
 
+    /* ── Overview grid ── */
+    .overview-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+    .node-card {
+      background: #fff;
+      border-radius: 12px;
+      padding: 14px 14px 12px;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+      cursor: pointer;
+      border: 2px solid transparent;
+      transition: border-color 0.15s;
+    }
+    .node-card:hover { border-color: #c7c9d3; }
+    .node-card.active { border-color: #1a1a2e; }
+
+    .node-card-title {
+      font-size: 0.72rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: #888;
+      margin-bottom: 8px;
+    }
+    .node-co2 {
+      font-size: 2rem;
+      font-weight: 700;
+      line-height: 1;
+      margin-bottom: 2px;
+    }
+    .node-co2-unit { font-size: 0.72rem; color: #888; }
+    .node-badge {
+      display: inline-block;
+      margin-top: 5px;
+      padding: 2px 8px;
+      border-radius: 20px;
+      font-size: 0.68rem;
+      font-weight: 700;
+      color: #fff;
+      background: #aaa;
+    }
+    .node-meta {
+      margin-top: 8px;
+      font-size: 0.75rem;
+      color: #666;
+      display: flex;
+      gap: 10px;
+    }
+    .node-meta span { white-space: nowrap; }
+    .node-offline { opacity: 0.45; }
+    .node-stale .node-co2 { color: #999; }
+
+    /* ── Detail view ── */
+    #detail-view { display: none; }
+    #detail-view.visible { display: block; }
+
+    .detail-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      margin-bottom: 14px;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+    .detail-title {
+      font-size: 1.1rem;
+      font-weight: 700;
+    }
+
+    .cards {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+      gap: 10px;
+      margin-bottom: 20px;
+    }
     .card {
       background: #fff;
       border-radius: 12px;
-      padding: 16px 14px 12px;
+      padding: 14px 12px 10px;
       box-shadow: 0 1px 4px rgba(0,0,0,0.08);
     }
     .card-label {
-      font-size: 0.7rem;
+      font-size: 0.68rem;
       font-weight: 600;
       text-transform: uppercase;
       letter-spacing: 0.06em;
@@ -50,12 +147,12 @@
       margin-bottom: 6px;
     }
     .card-value {
-      font-size: 2rem;
+      font-size: 1.9rem;
       font-weight: 700;
       line-height: 1;
     }
     .card-unit {
-      font-size: 0.75rem;
+      font-size: 0.72rem;
       color: #888;
       margin-top: 4px;
     }
@@ -64,33 +161,19 @@
       margin-top: 6px;
       padding: 2px 8px;
       border-radius: 20px;
-      font-size: 0.7rem;
+      font-size: 0.68rem;
       font-weight: 700;
       color: #fff;
       background: #aaa;
     }
+    .card.dim { opacity: 0.4; }
 
-    .chart-section {
-      background: #fff;
-      border-radius: 12px;
-      padding: 16px;
-      margin-bottom: 16px;
-      box-shadow: 0 1px 4px rgba(0,0,0,0.08);
-    }
-    .chart-title {
-      font-size: 0.8rem;
-      font-weight: 600;
-      text-transform: uppercase;
-      letter-spacing: 0.06em;
-      color: #888;
-      margin-bottom: 10px;
-    }
-    .chart-wrap { position: relative; height: 160px; }
-
+    /* ── Charts ── */
     .range-bar {
       display: flex;
       gap: 4px;
       margin-bottom: 14px;
+      flex-wrap: wrap;
     }
     .range-btn {
       padding: 4px 10px;
@@ -111,9 +194,28 @@
       border-color: #1a1a2e;
     }
 
+    .chart-section {
+      background: #fff;
+      border-radius: 12px;
+      padding: 16px;
+      margin-bottom: 14px;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+    }
+    .chart-title {
+      font-size: 0.78rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: #888;
+      margin-bottom: 10px;
+    }
+    .chart-wrap { position: relative; height: 150px; }
+    .chart-section.hidden { display: none; }
+
     @media (max-width: 480px) {
-      .card-value { font-size: 1.6rem; }
-      .range-btn { padding: 3px 7px; font-size: 0.68rem; }
+      .card-value  { font-size: 1.5rem; }
+      .node-co2    { font-size: 1.7rem; }
+      .range-btn   { padding: 3px 7px; font-size: 0.68rem; }
     }
   </style>
 </head>
@@ -124,59 +226,95 @@
   <span id="last-updated">—</span>
 </header>
 
-<div class="cards">
-  <div class="card" id="card-co2">
-    <div class="card-label">CO₂</div>
-    <div class="card-value" id="co2-val">—</div>
-    <div class="card-unit">ppm</div>
-    <div class="card-badge" id="co2-badge">—</div>
-  </div>
-  <div class="card">
-    <div class="card-label">PM2.5</div>
-    <div class="card-value" id="pm25-val">—</div>
-    <div class="card-unit">µg/m³</div>
-  </div>
-  <div class="card">
-    <div class="card-label">PM10</div>
-    <div class="card-value" id="pm10-val">—</div>
-    <div class="card-unit">µg/m³</div>
-  </div>
-  <div class="card">
-    <div class="card-label">Temperature</div>
-    <div class="card-value" id="temp-val">—</div>
-    <div class="card-unit">°F</div>
-  </div>
-  <div class="card">
-    <div class="card-label">Humidity</div>
-    <div class="card-value" id="hum-val">—</div>
-    <div class="card-unit">%RH</div>
+<!-- Room tabs -->
+<div class="tab-bar" id="tab-bar">
+  <button class="tab-btn active" data-tab="overview">Overview</button>
+  {% for node in nodes %}
+  <button class="tab-btn" data-tab="{{ node }}">{{ node_labels[node] }}</button>
+  {% endfor %}
+</div>
+
+<!-- Overview: per-node summary cards -->
+<div id="overview-view">
+  <div class="overview-grid" id="overview-grid">
+    {% for node in nodes %}
+    <div class="node-card" id="nodecard-{{ node }}" data-node="{{ node }}"
+         onclick="switchToRoom('{{ node }}')">
+      <div class="node-card-title">{{ node_labels[node] }}</div>
+      <div class="node-co2" id="ov-co2-{{ node }}">—</div>
+      <div class="node-co2-unit">ppm CO₂</div>
+      <div class="node-badge" id="ov-badge-{{ node }}">—</div>
+      <div class="node-meta">
+        <span id="ov-temp-{{ node }}">—</span>
+        <span id="ov-hum-{{ node }}">—</span>
+      </div>
+      <div style="font-size:0.68rem;color:#aaa;margin-top:4px;" id="ov-ts-{{ node }}"></div>
+    </div>
+    {% endfor %}
   </div>
 </div>
 
-<div class="range-bar">
-  <button class="range-btn active" data-range="1d">1D</button>
-  <button class="range-btn" data-range="1w">1W</button>
-  <button class="range-btn" data-range="1m">1M</button>
-  <button class="range-btn" data-range="3m">3M</button>
-  <button class="range-btn" data-range="6m">6M</button>
-  <button class="range-btn" data-range="1y">1Y</button>
-  <button class="range-btn" data-range="all">ALL</button>
-</div>
+<!-- Detail: selected room's cards + charts -->
+<div id="detail-view">
+  <div class="detail-header">
+    <span class="detail-title" id="detail-title">Office</span>
+  </div>
 
-<div class="chart-section">
-  <div class="chart-title" id="title-co2">CO₂ — last 24 hours</div>
-  <div class="chart-wrap"><canvas id="co2-chart"></canvas></div>
-</div>
-<div class="chart-section">
-  <div class="chart-title" id="title-pm25">PM2.5 — last 24 hours</div>
-  <div class="chart-wrap"><canvas id="pm25-chart"></canvas></div>
-</div>
-<div class="chart-section">
-  <div class="chart-title" id="title-temp">Temperature — last 24 hours</div>
-  <div class="chart-wrap"><canvas id="temp-chart"></canvas></div>
+  <div class="cards" id="detail-cards">
+    <div class="card" id="detail-card-co2">
+      <div class="card-label">CO₂</div>
+      <div class="card-value" id="d-co2">—</div>
+      <div class="card-unit">ppm</div>
+      <div class="card-badge" id="d-co2-badge">—</div>
+    </div>
+    <div class="card" id="detail-card-pm25">
+      <div class="card-label">PM2.5</div>
+      <div class="card-value" id="d-pm25">—</div>
+      <div class="card-unit">µg/m³</div>
+    </div>
+    <div class="card" id="detail-card-pm10">
+      <div class="card-label">PM10</div>
+      <div class="card-value" id="d-pm10">—</div>
+      <div class="card-unit">µg/m³</div>
+    </div>
+    <div class="card">
+      <div class="card-label">Temperature</div>
+      <div class="card-value" id="d-temp">—</div>
+      <div class="card-unit">°F</div>
+    </div>
+    <div class="card">
+      <div class="card-label">Humidity</div>
+      <div class="card-value" id="d-hum">—</div>
+      <div class="card-unit">%RH</div>
+    </div>
+  </div>
+
+  <div class="range-bar">
+    <button class="range-btn active" data-range="1d">1D</button>
+    <button class="range-btn" data-range="1w">1W</button>
+    <button class="range-btn" data-range="1m">1M</button>
+    <button class="range-btn" data-range="3m">3M</button>
+    <button class="range-btn" data-range="6m">6M</button>
+    <button class="range-btn" data-range="1y">1Y</button>
+    <button class="range-btn" data-range="all">ALL</button>
+  </div>
+
+  <div class="chart-section">
+    <div class="chart-title" id="title-co2">CO₂ — last 24 hours</div>
+    <div class="chart-wrap"><canvas id="co2-chart"></canvas></div>
+  </div>
+  <div class="chart-section" id="pm-chart-section">
+    <div class="chart-title" id="title-pm25">PM2.5 — last 24 hours</div>
+    <div class="chart-wrap"><canvas id="pm25-chart"></canvas></div>
+  </div>
+  <div class="chart-section">
+    <div class="chart-title" id="title-temp">Temperature — last 24 hours</div>
+    <div class="chart-wrap"><canvas id="temp-chart"></canvas></div>
+  </div>
 </div>
 
 <script>
+  // ── Constants ──────────────────────────────────────────────────────────────
   const CO2_THRESHOLDS = [
     { max: 800,      label: 'GOOD', color: '#22c55e' },
     { max: 1000,     label: 'OK',   color: '#eab308' },
@@ -184,6 +322,13 @@
     { max: Infinity, label: 'BAD!', color: '#ef4444' },
   ];
 
+  const NODE_LABELS = {{ node_labels | tojson }};
+  const NODES       = {{ nodes | tojson }};
+
+  // Stale threshold: > 5 minutes since last reading
+  const STALE_MS = 5 * 60 * 1000;
+
+  // ── Helpers ────────────────────────────────────────────────────────────────
   function co2Status(ppm) {
     return CO2_THRESHOLDS.find(t => ppm < t.max) || CO2_THRESHOLDS.at(-1);
   }
@@ -192,30 +337,136 @@
     return val != null ? Number(val).toFixed(digits) : '—';
   }
 
-  async function refreshCurrent() {
-    try {
-      const data = await fetch('/api/now').then(r => r.json());
-      document.getElementById('co2-val').textContent  = fmt(data.co2_ppm);
-      document.getElementById('pm25-val').textContent = fmt(data.pm25, 1);
-      document.getElementById('pm10-val').textContent  = fmt(data.pm10, 1);
-      document.getElementById('temp-val').textContent  = fmt(data.temp_c != null ? data.temp_c * 9/5 + 32 : null, 1);
-      document.getElementById('hum-val').textContent   = fmt(data.humidity_pct, 1);
+  function toF(c) { return c != null ? c * 9/5 + 32 : null; }
 
-      if (data.co2_ppm != null) {
-        const status = co2Status(data.co2_ppm);
-        const badge  = document.getElementById('co2-badge');
-        badge.textContent       = status.label;
-        badge.style.background  = status.color;
+  function relativeTime(isoStr) {
+    if (!isoStr) return '';
+    const diff = Date.now() - new Date(isoStr).getTime();
+    if (diff < 0 || isNaN(diff)) return '';
+    if (diff < 60000)  return `${Math.round(diff/1000)}s ago`;
+    if (diff < 3600000) return `${Math.round(diff/60000)}m ago`;
+    return new Date(isoStr).toLocaleTimeString([], { hour:'2-digit', minute:'2-digit' });
+  }
+
+  // ── Tab / view state ───────────────────────────────────────────────────────
+  let currentTab  = 'overview';
+  let currentRoom = 'office';
+  let currentRange = '1d';
+  let charts = {};
+  let chartRefreshTimer = null;
+
+  function switchToRoom(node) {
+    currentRoom = node;
+    setTab(node);
+  }
+
+  function setTab(tab) {
+    currentTab = tab;
+
+    document.querySelectorAll('.tab-btn').forEach(b =>
+      b.classList.toggle('active', b.dataset.tab === tab));
+
+    const isOverview = (tab === 'overview');
+    document.getElementById('overview-view').style.display = isOverview ? '' : 'none';
+    const detail = document.getElementById('detail-view');
+    if (isOverview) {
+      detail.classList.remove('visible');
+    } else {
+      detail.classList.add('visible');
+      currentRoom = tab;
+      updateDetailCurrent();
+      setRange(currentRange, /*force=*/true);
+      // Show/hide PM cards for office only
+      const hasParticulate = (currentRoom === 'office');
+      document.getElementById('detail-card-pm25').classList.toggle('dim', !hasParticulate);
+      document.getElementById('detail-card-pm10').classList.toggle('dim', !hasParticulate);
+      document.getElementById('pm-chart-section').classList.toggle('hidden', !hasParticulate);
+      document.getElementById('detail-title').textContent = NODE_LABELS[currentRoom] || currentRoom;
+    }
+  }
+
+  // ── Overview ───────────────────────────────────────────────────────────────
+  function updateOverview(allData) {
+    let latestTs = null;
+
+    NODES.forEach(node => {
+      const data = allData[node];
+      const card = document.getElementById(`nodecard-${node}`);
+      if (!data || data.co2_ppm == null) {
+        document.getElementById(`ov-co2-${node}`).textContent = '—';
+        document.getElementById(`ov-badge-${node}`).textContent = '—';
+        document.getElementById(`ov-badge-${node}`).style.background = '#aaa';
+        document.getElementById(`ov-temp-${node}`).textContent = '—';
+        document.getElementById(`ov-hum-${node}`).textContent = '—';
+        document.getElementById(`ov-ts-${node}`).textContent = '';
+        if (card) card.classList.add('node-offline');
+        return;
       }
 
-      const ts = data.timestamp ? new Date(data.timestamp).toLocaleTimeString() : null;
+      const tsMs = new Date(data.timestamp).getTime();
+      const stale = (Date.now() - tsMs) > STALE_MS;
+
+      if (card) {
+        card.classList.remove('node-offline', 'node-stale');
+        card.classList.toggle('active', node === currentRoom && currentTab !== 'overview');
+        if (stale) card.classList.add('node-stale');
+      }
+
+      const status = co2Status(data.co2_ppm);
+      document.getElementById(`ov-co2-${node}`).textContent = fmt(data.co2_ppm);
+      const badge = document.getElementById(`ov-badge-${node}`);
+      badge.textContent = status.label;
+      badge.style.background = stale ? '#aaa' : status.color;
+
+      document.getElementById(`ov-temp-${node}`).textContent =
+        data.temp_c != null ? `${fmt(toF(data.temp_c), 1)}°F` : '—';
+      document.getElementById(`ov-hum-${node}`).textContent =
+        data.humidity_pct != null ? `${fmt(data.humidity_pct, 1)}%` : '—';
+      document.getElementById(`ov-ts-${node}`).textContent = relativeTime(data.timestamp);
+
+      if (!latestTs || tsMs > new Date(latestTs).getTime()) latestTs = data.timestamp;
+    });
+
+    if (latestTs) {
       document.getElementById('last-updated').textContent =
-        ts ? `updated ${ts}` : '—';
+        `updated ${new Date(latestTs).toLocaleTimeString()}`;
+    }
+  }
+
+  // ── Detail current cards ───────────────────────────────────────────────────
+  let _lastAllData = {};
+
+  function updateDetailCurrent() {
+    const data = _lastAllData[currentRoom];
+    if (!data) return;
+
+    document.getElementById('d-co2').textContent  = fmt(data.co2_ppm);
+    document.getElementById('d-pm25').textContent = fmt(data.pm25, 1);
+    document.getElementById('d-pm10').textContent  = fmt(data.pm10, 1);
+    document.getElementById('d-temp').textContent  = fmt(toF(data.temp_c), 1);
+    document.getElementById('d-hum').textContent   = fmt(data.humidity_pct, 1);
+
+    if (data.co2_ppm != null) {
+      const status = co2Status(data.co2_ppm);
+      const badge  = document.getElementById('d-co2-badge');
+      badge.textContent      = status.label;
+      badge.style.background = status.color;
+    }
+  }
+
+  // ── Fetch /api/now ─────────────────────────────────────────────────────────
+  async function refreshCurrent() {
+    try {
+      const allData = await fetch('/api/now').then(r => r.json());
+      _lastAllData = allData;
+      updateOverview(allData);
+      if (currentTab !== 'overview') updateDetailCurrent();
     } catch (e) {
       console.warn('refreshCurrent error:', e);
     }
   }
 
+  // ── Charts ─────────────────────────────────────────────────────────────────
   const CHART_DEFAULTS = {
     type: 'line',
     options: {
@@ -226,11 +477,7 @@
       elements: { point: { radius: 0 } },
       scales: {
         x: {
-          ticks: {
-            maxTicksLimit: 6,
-            maxRotation: 0,
-            font: { size: 10 },
-          },
+          ticks: { maxTicksLimit: 6, maxRotation: 0, font: { size: 10 } },
           grid: { color: 'rgba(0,0,0,0.05)' },
         },
         y: {
@@ -242,33 +489,18 @@
     },
   };
 
-  let charts = {};
-  let currentRange = '1d';
-  let chartRefreshTimer = null;
-
   const RANGE_LABELS = {
-    '1d': 'last 24 hours',
-    '1w': 'last 7 days',
-    '1m': 'last 30 days',
-    '3m': 'last 3 months',
-    '6m': 'last 6 months',
-    '1y': 'last year',
-    'all': 'all time',
+    '1d': 'last 24 hours', '1w': 'last 7 days', '1m': 'last 30 days',
+    '3m': 'last 3 months', '6m': 'last 6 months', '1y': 'last year', 'all': 'all time',
   };
 
   function formatLabel(ts, range) {
     const dt = new Date(ts);
-    if (range === '1d') {
-      return dt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    } else if (range === '1w') {
-      return dt.toLocaleDateString([], { weekday: 'short' }) + ' ' +
-             dt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    } else if (range === '1m' || range === '3m' || range === '6m') {
-      return dt.toLocaleDateString([], { month: 'short', day: 'numeric' });
-    } else {
-      // 1y, all
-      return dt.toLocaleDateString([], { month: 'short', year: 'numeric' });
-    }
+    if (range === '1d') return dt.toLocaleTimeString([], { hour:'2-digit', minute:'2-digit' });
+    if (range === '1w') return dt.toLocaleDateString([], { weekday:'short' }) + ' ' +
+                               dt.toLocaleTimeString([], { hour:'2-digit', minute:'2-digit' });
+    if (['1m','3m','6m'].includes(range)) return dt.toLocaleDateString([], { month:'short', day:'numeric' });
+    return dt.toLocaleDateString([], { month:'short', year:'numeric' });
   }
 
   function makeDataset(label, values, color) {
@@ -293,62 +525,57 @@
   async function loadCharts(range) {
     range = range || currentRange;
     try {
-      const data = await fetch(`/api/history?range=${range}`).then(r => r.json());
+      const url = `/api/history?range=${range}&node=${currentRoom}`;
+      const data = await fetch(url).then(r => r.json());
       if (!Array.isArray(data) || !data.length) return;
 
       const labels = data.map(d => formatLabel(d.timestamp, range));
 
-      if (charts.co2) charts.co2.destroy();
+      if (charts.co2)  charts.co2.destroy();
       charts.co2 = new Chart(document.getElementById('co2-chart'), {
         ...CHART_DEFAULTS,
-        data: {
-          labels,
-          datasets: [makeDataset('CO₂ ppm', data.map(d => d.co2_ppm), 'rgb(239,68,68)')],
-        },
+        data: { labels, datasets: [makeDataset('CO₂ ppm', data.map(d => d.co2_ppm), 'rgb(239,68,68)')] },
       });
 
       if (charts.pm25) charts.pm25.destroy();
       charts.pm25 = new Chart(document.getElementById('pm25-chart'), {
         ...CHART_DEFAULTS,
-        data: {
-          labels,
-          datasets: [makeDataset('PM2.5 µg/m³', data.map(d => d.pm25), 'rgb(168,85,247)')],
-        },
+        data: { labels, datasets: [makeDataset('PM2.5 µg/m³', data.map(d => d.pm25), 'rgb(168,85,247)')] },
       });
 
       if (charts.temp) charts.temp.destroy();
       charts.temp = new Chart(document.getElementById('temp-chart'), {
         ...CHART_DEFAULTS,
-        data: {
-          labels,
-          datasets: [makeDataset('Temp °F', data.map(d => d.temp_c != null ? d.temp_c * 9/5 + 32 : null), 'rgb(34,197,94)')],
-        },
+        data: { labels, datasets: [makeDataset('Temp °F', data.map(d => toF(d.temp_c)), 'rgb(34,197,94)')] },
       });
     } catch (e) {
       console.warn('loadCharts error:', e);
     }
   }
 
-  function setRange(range) {
+  function setRange(range, force = false) {
+    if (!force && range === currentRange) return;
     currentRange = range;
-    document.querySelectorAll('.range-btn').forEach(btn => {
-      btn.classList.toggle('active', btn.dataset.range === range);
-    });
+    document.querySelectorAll('.range-btn').forEach(btn =>
+      btn.classList.toggle('active', btn.dataset.range === range));
     updateChartTitles(range);
     loadCharts(range);
-    // Reset auto-refresh timer so it counts from now
     if (chartRefreshTimer) clearInterval(chartRefreshTimer);
     chartRefreshTimer = setInterval(() => loadCharts(currentRange), 60000);
   }
+
+  // ── Wire up controls ───────────────────────────────────────────────────────
+  document.querySelectorAll('.tab-btn').forEach(btn => {
+    btn.addEventListener('click', () => setTab(btn.dataset.tab));
+  });
 
   document.querySelectorAll('.range-btn').forEach(btn => {
     btn.addEventListener('click', () => setRange(btn.dataset.range));
   });
 
+  // ── Boot ───────────────────────────────────────────────────────────────────
   refreshCurrent();
-  loadCharts('1d');
   setInterval(refreshCurrent, 10000);
-  chartRefreshTimer = setInterval(() => loadCharts(currentRange), 60000);
 </script>
 </body>
 </html>

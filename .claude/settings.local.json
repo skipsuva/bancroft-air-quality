@@ -29,7 +29,20 @@
       "Bash(tailscale status *)",
       "Bash(curl *)",
       "Bash(sqlite3 air_quality.db \"SELECT COUNT\\(*\\) as readings_1min FROM readings_1min; SELECT COUNT\\(*\\) as readings_10min FROM readings_10min; SELECT COUNT\\(*\\) as daily_summaries FROM daily_summaries;\")",
-      "Bash(sudo systemctl stop bancroft-air)"
+      "Bash(sudo systemctl stop bancroft-air)",
+      "Bash(sudo systemctl status mosquitto --no-pager)",
+      "Bash(sudo cp mqtt_listener.service /etc/systemd/system/)",
+      "Bash(sudo systemctl daemon-reload)",
+      "Bash(sudo systemctl enable mqtt_listener)",
+      "Bash(sudo systemctl start mqtt_listener)",
+      "Bash(sudo systemctl status mqtt_listener --no-pager)",
+      "Bash(journalctl *)",
+      "Bash(sudo systemctl restart mqtt_listener)",
+      "Bash(mosquitto_pub -h localhost -t bancroft/bedroom/readings -m '{\"node\":\"bedroom\",\"co2\":923,\"temp_c\":21.4,\"humidity\":48.1,\"timestamp\":\"2026-05-26T10:00:00\"}')",
+      "Bash(sudo systemctl restart bancroft-air)",
+      "Bash(sudo systemctl status bancroft-air --no-pager)",
+      "Bash(mosquitto_pub -h localhost -t bancroft/toddler/readings -m '{\"node\":\"toddler\",\"co2\":756,\"temp_c\":20.8,\"humidity\":52.3,\"timestamp\":\"2026-05-26T17:55:00\"}')",
+      "Bash(mosquitto_pub -h localhost -t bancroft/wifesoffice/readings -m '{\"node\":\"wifesoffice\",\"co2\":1012,\"temp_c\":23.5,\"humidity\":45.0,\"timestamp\":\"2026-05-26T17:55:00\"}')"
     ]
   }
 }

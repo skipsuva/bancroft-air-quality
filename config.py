@@ -24,6 +24,23 @@ PM10_CRITICAL = 150
 
 SUMMARY_HOUR = 8
 
+# MQTT
+CO2_HIGH_STREAK_MQTT = 5   # 5 readings × 60s ESP32 interval = 5-minute sustained threshold
+
+MQTT_BROKER = "localhost"
+MQTT_PORT = 1883
+MQTT_TOPIC_SUBSCRIBE = "bancroft/+/readings"
+MQTT_TOPIC_PUBLISH = "bancroft/office/readings"
+
+# Node names (office is this Pi; others are ESP32 nodes)
+NODES = ["office", "bedroom", "toddler", "wifesoffice"]
+NODE_LABELS = {
+    "office":      "Office",
+    "bedroom":     "Bedroom",
+    "toddler":     "Toddler's Room",
+    "wifesoffice": "Wife's Office",
+}
+
 CO2_LABELS = [
     (800, "GOOD"),
     (1000, "OK"),
