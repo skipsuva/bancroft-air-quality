@@ -177,7 +177,15 @@ def sensor_loop(notifier: Notifier) -> None:
     last_10min_write = datetime.now()
     co2_high_streak = 0
     pm_elevated_streak = 0
-    last_summary_date: date | None = None
+    # Seed from DB so a daemon restart after 08:00 doesn't re-send the daily summary.
+    _latest_summary = db.get_latest_summary_date()
+    now_startup = datetime.now()
+    last_summary_date: date | None = (
+        now_startup.date()
+        if _latest_summary is not None and _latest_summary >= (now_startup.date() - timedelta(days=1))
+        and now_startup.hour >= config.SUMMARY_HOUR
+        else None
+    )
 
     try:
         while not _shutdown.is_set():

@@ -191,6 +191,19 @@ def insert_daily_summary(summary: dict) -> None:
         con.close()
 
 
+def get_latest_summary_date() -> "date | None":
+    """Return the most recent date in daily_summaries, or None if the table is empty."""
+    from datetime import date as _date
+    con = get_connection()
+    try:
+        row = con.execute("SELECT MAX(date) FROM daily_summaries").fetchone()
+        if row and row[0]:
+            return _date.fromisoformat(row[0])
+        return None
+    finally:
+        con.close()
+
+
 def get_current() -> dict | None:
     """Return the office node's latest current reading (legacy fallback for /api/now)."""
     con = get_connection()

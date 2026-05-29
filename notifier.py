@@ -135,4 +135,4 @@ class Notifier:
                 line += f", PM10 {pm10_avg:.1f} µg/m³"
             lines.append(line)
 
-        self._send("Bancroft Air daily summary", "\n".join(lines), priority="low")
+        self._send("Bancroft Air daily summary", "\n\n".join(lines), priority="low")
