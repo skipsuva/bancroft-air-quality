@@ -24,9 +24,11 @@ class OLEDDisplay:
         self._screen_index = 0
 
         try:
+            self._font_status = ImageFont.load_default(size=20)
             self._font_large = ImageFont.load_default(size=14)
             self._font_small = ImageFont.load_default(size=11)
         except TypeError:
+            self._font_status = ImageFont.load_default()
             self._font_large = ImageFont.load_default()
             self._font_small = ImageFont.load_default()
 
@@ -47,15 +49,16 @@ class OLEDDisplay:
         pm25 = data.get("pm25")
         pm10 = data.get("pm10")
 
+        label = _co2_label(co2) if co2 is not None else "--"
         co2_str = f"CO2: {co2:.0f} ppm" if co2 is not None else "CO2: --"
-        label = _co2_label(co2) if co2 is not None else ""
-        pm25_str = f"PM2.5: {pm25:.0f} ug/m3" if pm25 is not None else "PM2.5: --"
-        pm10_str = f"PM10:  {pm10:.0f} ug/m3" if pm10 is not None else "PM10:  --"
+        pm25_str = f"PM2.5: {pm25:.0f}" if pm25 is not None else "PM2.5: --"
+        pm10_str = f"PM10: {pm10:.0f}" if pm10 is not None else "PM10: --"
 
-        draw.text((0, 0), co2_str, fill="white", font=self._font_large)
-        draw.text((0, 16), f"[{label}]", fill="white", font=self._font_large)
-        draw.text((0, 34), pm25_str, fill="white", font=self._font_small)
-        draw.text((0, 48), pm10_str, fill="white", font=self._font_small)
+        label_w = draw.textlength(label, font=self._font_status)
+        draw.text(((128 - label_w) // 2, 0), label, fill="white", font=self._font_status)
+        draw.text((0, 24), co2_str, fill="white", font=self._font_large)
+        draw.text((0, 42), pm25_str, fill="white", font=self._font_small)
+        draw.text((66, 42), pm10_str, fill="white", font=self._font_small)
 
     def _draw_screen_2(self, draw, data: dict) -> None:
         temp_c = data.get("temp_c")

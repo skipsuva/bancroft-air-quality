@@ -225,6 +225,14 @@ def get_history(range_str: str, node: str | None = None) -> list[dict]:
             ).fetchall()
             return [dict(r) for r in rows]
 
+        elif range_str == "6h":
+            cutoff = (now - timedelta(hours=6)).isoformat()
+            rows = con.execute(
+                f"SELECT * FROM readings_1min WHERE timestamp >= ? {node_clause} ORDER BY timestamp",
+                (cutoff,) + node_param,
+            ).fetchall()
+            return [dict(r) for r in rows]
+
         elif range_str == "1d":
             cutoff = (now - timedelta(hours=24)).isoformat()
             rows = con.execute(

@@ -293,7 +293,8 @@
   </div>
 
   <div class="range-bar">
-    <button class="range-btn active" data-range="1d">1D</button>
+    <button class="range-btn active" data-range="6h">6H</button>
+    <button class="range-btn" data-range="1d">1D</button>
     <button class="range-btn" data-range="1w">1W</button>
     <button class="range-btn" data-range="1m">1M</button>
     <button class="range-btn" data-range="3m">3M</button>
@@ -354,7 +355,7 @@
   // ── Tab / view state ───────────────────────────────────────────────────────
   let currentTab  = 'overview';
   let currentRoom = 'office';
-  let currentRange = '1d';
+  let currentRange = '6h';
   let charts = {};
   let chartRefreshTimer = null;
 
@@ -493,13 +494,13 @@
   };
 
   const RANGE_LABELS = {
-    '1d': 'last 24 hours', '1w': 'last 7 days', '1m': 'last 30 days',
+    '6h': 'last 6 hours', '1d': 'last 24 hours', '1w': 'last 7 days', '1m': 'last 30 days',
     '3m': 'last 3 months', '6m': 'last 6 months', '1y': 'last year', 'all': 'all time',
   };
 
   function formatLabel(ts, range) {
     const dt = new Date(ts);
-    if (range === '1d') return dt.toLocaleTimeString([], { hour:'2-digit', minute:'2-digit' });
+    if (range === '6h' || range === '1d') return dt.toLocaleTimeString([], { hour:'2-digit', minute:'2-digit' });
     if (range === '1w') return dt.toLocaleDateString([], { weekday:'short' }) + ' ' +
                                dt.toLocaleTimeString([], { hour:'2-digit', minute:'2-digit' });
     if (['1m','3m','6m'].includes(range)) return dt.toLocaleDateString([], { month:'short', day:'numeric' });
