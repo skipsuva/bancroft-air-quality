@@ -12,7 +12,9 @@ CREATE TABLE IF NOT EXISTS readings_1min (
     humidity_pct REAL,
     pm25         REAL,
     pm10         REAL,
-    node         TEXT DEFAULT 'office'
+    node         TEXT DEFAULT 'office',
+    aqi          INTEGER,
+    tvoc         INTEGER
 )
 """
 
@@ -25,7 +27,9 @@ CREATE TABLE IF NOT EXISTS readings_10min (
     humidity_pct REAL,
     pm25         REAL,
     pm10         REAL,
-    node         TEXT DEFAULT 'office'
+    node         TEXT DEFAULT 'office',
+    aqi          INTEGER,
+    tvoc         INTEGER
 )
 """
 
@@ -63,7 +67,9 @@ CREATE TABLE IF NOT EXISTS node_current (
     temp_c       REAL,
     humidity_pct REAL,
     pm25         REAL,
-    pm10         REAL
+    pm10         REAL,
+    aqi          INTEGER,
+    tvoc         INTEGER
 )
 """
 
@@ -84,6 +90,10 @@ def _migrate(con: sqlite3.Connection) -> None:
     }
     if "node" not in existing:
         con.execute("ALTER TABLE readings_1min ADD COLUMN node TEXT DEFAULT 'office'")
+    if "aqi" not in existing:
+        con.execute("ALTER TABLE readings_1min ADD COLUMN aqi INTEGER")
+    if "tvoc" not in existing:
+        con.execute("ALTER TABLE readings_1min ADD COLUMN tvoc INTEGER")
 
     existing = {
         row[1]
@@ -91,6 +101,19 @@ def _migrate(con: sqlite3.Connection) -> None:
     }
     if "node" not in existing:
         con.execute("ALTER TABLE readings_10min ADD COLUMN node TEXT DEFAULT 'office'")
+    if "aqi" not in existing:
+        con.execute("ALTER TABLE readings_10min ADD COLUMN aqi INTEGER")
+    if "tvoc" not in existing:
+        con.execute("ALTER TABLE readings_10min ADD COLUMN tvoc INTEGER")
+
+    existing = {
+        row[1]
+        for row in con.execute("PRAGMA table_info(node_current)").fetchall()
+    }
+    if "aqi" not in existing:
+        con.execute("ALTER TABLE node_current ADD COLUMN aqi INTEGER")
+    if "tvoc" not in existing:
+        con.execute("ALTER TABLE node_current ADD COLUMN tvoc INTEGER")
 
     con.commit()
 
@@ -141,9 +164,9 @@ def upsert_node_current(reading: dict) -> None:
     try:
         con.execute(
             """INSERT OR REPLACE INTO node_current
-               (node, timestamp, co2_ppm, temp_c, humidity_pct, pm25, pm10)
-               VALUES (:node, :timestamp, :co2_ppm, :temp_c, :humidity_pct, :pm25, :pm10)""",
-            reading,
+               (node, timestamp, co2_ppm, temp_c, humidity_pct, pm25, pm10, aqi, tvoc)
+               VALUES (:node, :timestamp, :co2_ppm, :temp_c, :humidity_pct, :pm25, :pm10, :aqi, :tvoc)""",
+            {**reading, "aqi": reading.get("aqi"), "tvoc": reading.get("tvoc")},
         )
         con.commit()
     finally:
@@ -168,9 +191,9 @@ def insert_reading(table: str, reading: dict) -> None:
     try:
         con.execute(
             f"""INSERT INTO {table}
-                (timestamp, co2_ppm, temp_c, humidity_pct, pm25, pm10, node)
-                VALUES (:timestamp, :co2_ppm, :temp_c, :humidity_pct, :pm25, :pm10, :node)""",
-            {**reading, "node": node},
+                (timestamp, co2_ppm, temp_c, humidity_pct, pm25, pm10, node, aqi, tvoc)
+                VALUES (:timestamp, :co2_ppm, :temp_c, :humidity_pct, :pm25, :pm10, :node, :aqi, :tvoc)""",
+            {**reading, "node": node, "aqi": reading.get("aqi"), "tvoc": reading.get("tvoc")},
         )
         con.commit()
     finally:
@@ -280,7 +303,9 @@ def get_history(range_str: str, node: str | None = None) -> list[dict]:
                           AVG(humidity_pct) AS humidity_pct,
                           AVG(pm25)         AS pm25,
                           AVG(pm10)         AS pm10,
-                          node
+                          node,
+                          AVG(aqi)          AS aqi,
+                          AVG(tvoc)         AS tvoc
                    FROM readings_10min
                    WHERE timestamp >= ? {node_clause}
                    GROUP BY strftime('%Y-%m-%dT%H:00:00', timestamp), node
@@ -301,7 +326,9 @@ def get_history(range_str: str, node: str | None = None) -> list[dict]:
                           humidity_avg AS humidity_pct,
                           pm25_avg   AS pm25,
                           NULL       AS pm10,
-                          'office'   AS node
+                          'office'   AS node,
+                          NULL       AS aqi,
+                          NULL       AS tvoc
                    FROM daily_summaries
                    WHERE date >= ?
                    ORDER BY date""",
@@ -319,7 +346,9 @@ def get_history(range_str: str, node: str | None = None) -> list[dict]:
                           humidity_avg AS humidity_pct,
                           pm25_avg   AS pm25,
                           NULL       AS pm10,
-                          'office'   AS node
+                          'office'   AS node,
+                          NULL       AS aqi,
+                          NULL       AS tvoc
                    FROM daily_summaries
                    ORDER BY date""",
             ).fetchall()

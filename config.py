@@ -33,13 +33,16 @@ MQTT_TOPIC_SUBSCRIBE = "bancroft/+/readings"
 MQTT_TOPIC_PUBLISH = "bancroft/office/readings"
 
 # Node names (office is this Pi; others are ESP32 nodes)
-NODES = ["office", "bedroom", "toddler", "wifesoffice"]
+NODES = ["office", "bedroom", "toddler", "wifesoffice", "basement"]
 NODE_LABELS = {
     "office":      "Office",
     "bedroom":     "Bedroom",
-    "toddler":     "Toddler's Room",
+    "toddler":     "Mari's Room",
     "wifesoffice": "Wife's Office",
+    "basement":    "Basement",
 }
+
+ENS160_NODES = ["toddler", "bedroom"]
 
 CO2_LABELS = [
     (800, "GOOD"),

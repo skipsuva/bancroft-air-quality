@@ -243,7 +243,10 @@
       <div class="node-card-title">{{ node_labels[node] }}</div>
       <div class="node-co2" id="ov-co2-{{ node }}">—</div>
       <div class="node-co2-unit">ppm CO₂</div>
-      <div class="node-badge" id="ov-badge-{{ node }}">—</div>
+      <div style="display:flex;gap:4px;flex-wrap:wrap;margin-top:5px;">
+        <div class="node-badge" id="ov-badge-{{ node }}" style="margin-top:0;">—</div>
+        <div class="node-badge" id="ov-aqi-badge-{{ node }}" style="margin-top:0;display:none;">—</div>
+      </div>
       <div style="position:relative;height:40px;margin-top:8px;">
         <canvas id="ov-spark-{{ node }}"></canvas>
       </div>
@@ -290,6 +293,17 @@
       <div class="card-value" id="d-hum">—</div>
       <div class="card-unit">%RH</div>
     </div>
+    <div class="card" id="detail-card-aqi">
+      <div class="card-label">AQI</div>
+      <div class="card-value" id="d-aqi">—</div>
+      <div class="card-badge" id="d-aqi-badge">—</div>
+    </div>
+    <div class="card" id="detail-card-tvoc">
+      <div class="card-label">TVOC</div>
+      <div class="card-value" id="d-tvoc">—</div>
+      <div class="card-unit">ppb</div>
+      <div class="card-badge" id="d-tvoc-badge">—</div>
+    </div>
   </div>
 
   <div class="range-bar">
@@ -315,6 +329,14 @@
     <div class="chart-title" id="title-temp">Temperature — last 24 hours</div>
     <div class="chart-wrap"><canvas id="temp-chart"></canvas></div>
   </div>
+  <div class="chart-section" id="aqi-chart-section">
+    <div class="chart-title" id="title-aqi">AQI — last 6 hours</div>
+    <div class="chart-wrap"><canvas id="aqi-chart"></canvas></div>
+  </div>
+  <div class="chart-section" id="tvoc-chart-section">
+    <div class="chart-title" id="title-tvoc">TVOC — last 6 hours</div>
+    <div class="chart-wrap"><canvas id="tvoc-chart"></canvas></div>
+  </div>
 </div>
 
 <script>
@@ -326,8 +348,23 @@
     { max: Infinity, label: 'BAD!', color: '#ef4444' },
   ];
 
-  const NODE_LABELS = {{ node_labels | tojson }};
-  const NODES       = {{ nodes | tojson }};
+  const NODE_LABELS  = {{ node_labels | tojson }};
+  const NODES        = {{ nodes | tojson }};
+  const ENS160_NODES = {{ ens160_nodes | tojson }};
+
+  const AQI_THRESHOLDS = [
+    { max: 1,        label: 'GOOD',      color: '#22c55e' },
+    { max: 2,        label: 'OK',        color: '#eab308' },
+    { max: 3,        label: 'POOR',      color: '#f97316' },
+    { max: 4,        label: 'UNHEALTHY', color: '#ef4444' },
+    { max: Infinity, label: 'HAZARDOUS', color: '#7f1d1d' },
+  ];
+  const TVOC_THRESHOLDS = [
+    { max: 150,      label: 'GOOD',      color: '#22c55e' },
+    { max: 250,      label: 'OK',        color: '#eab308' },
+    { max: 500,      label: 'POOR',      color: '#f97316' },
+    { max: Infinity, label: 'UNHEALTHY', color: '#ef4444' },
+  ];
 
   // Stale threshold: > 5 minutes since last reading
   const STALE_MS = 5 * 60 * 1000;
@@ -335,6 +372,12 @@
   // ── Helpers ────────────────────────────────────────────────────────────────
   function co2Status(ppm) {
     return CO2_THRESHOLDS.find(t => ppm < t.max) || CO2_THRESHOLDS.at(-1);
+  }
+  function aqiStatus(val) {
+    return AQI_THRESHOLDS.find(t => val <= t.max) || AQI_THRESHOLDS.at(-1);
+  }
+  function tvocStatus(ppb) {
+    return TVOC_THRESHOLDS.find(t => ppb < t.max) || TVOC_THRESHOLDS.at(-1);
   }
 
   function fmt(val, digits = 0) {
@@ -385,6 +428,12 @@
       document.getElementById('detail-card-pm25').classList.toggle('dim', !hasParticulate);
       document.getElementById('detail-card-pm10').classList.toggle('dim', !hasParticulate);
       document.getElementById('pm-chart-section').classList.toggle('hidden', !hasParticulate);
+      // Show/hide ENS160 cards and charts
+      const hasENS160 = ENS160_NODES.includes(currentRoom);
+      document.getElementById('detail-card-aqi').classList.toggle('dim', !hasENS160);
+      document.getElementById('detail-card-tvoc').classList.toggle('dim', !hasENS160);
+      document.getElementById('aqi-chart-section').classList.toggle('hidden', !hasENS160);
+      document.getElementById('tvoc-chart-section').classList.toggle('hidden', !hasENS160);
       document.getElementById('detail-title').textContent = NODE_LABELS[currentRoom] || currentRoom;
     }
   }
@@ -422,6 +471,16 @@
       badge.textContent = status.label;
       badge.style.background = stale ? '#aaa' : status.color;
 
+      const aqiBadge = document.getElementById(`ov-aqi-badge-${node}`);
+      if (data.aqi != null && ENS160_NODES.includes(node)) {
+        const aqiS = aqiStatus(data.aqi);
+        aqiBadge.textContent = aqiS.label;
+        aqiBadge.style.background = stale ? '#aaa' : aqiS.color;
+        aqiBadge.style.display = 'inline-block';
+      } else {
+        aqiBadge.style.display = 'none';
+      }
+
       document.getElementById(`ov-temp-${node}`).textContent =
         data.temp_c != null ? `${fmt(toF(data.temp_c), 1)}°F` : '—';
       document.getElementById(`ov-hum-${node}`).textContent =
@@ -455,6 +514,19 @@
       const badge  = document.getElementById('d-co2-badge');
       badge.textContent      = status.label;
       badge.style.background = status.color;
+    }
+
+    document.getElementById('d-aqi').textContent  = fmt(data.aqi);
+    document.getElementById('d-tvoc').textContent = fmt(data.tvoc);
+    if (data.aqi != null) {
+      const s = aqiStatus(data.aqi);
+      const b = document.getElementById('d-aqi-badge');
+      b.textContent = s.label; b.style.background = s.color;
+    }
+    if (data.tvoc != null) {
+      const s = tvocStatus(data.tvoc);
+      const b = document.getElementById('d-tvoc-badge');
+      b.textContent = s.label; b.style.background = s.color;
     }
   }
 
@@ -524,6 +596,8 @@
     document.getElementById('title-co2').textContent  = `CO₂ — ${suffix}`;
     document.getElementById('title-pm25').textContent = `PM2.5 — ${suffix}`;
     document.getElementById('title-temp').textContent = `Temperature — ${suffix}`;
+    document.getElementById('title-aqi').textContent  = `AQI — ${suffix}`;
+    document.getElementById('title-tvoc').textContent = `TVOC — ${suffix}`;
   }
 
   async function loadCharts(range) {
@@ -552,6 +626,19 @@
         ...CHART_DEFAULTS,
         data: { labels, datasets: [makeDataset('Temp °F', data.map(d => toF(d.temp_c)), 'rgb(34,197,94)')] },
       });
+
+      if (ENS160_NODES.includes(currentRoom)) {
+        if (charts.aqi) charts.aqi.destroy();
+        charts.aqi = new Chart(document.getElementById('aqi-chart'), {
+          ...CHART_DEFAULTS,
+          data: { labels, datasets: [makeDataset('AQI', data.map(d => d.aqi), 'rgb(99,102,241)')] },
+        });
+        if (charts.tvoc) charts.tvoc.destroy();
+        charts.tvoc = new Chart(document.getElementById('tvoc-chart'), {
+          ...CHART_DEFAULTS,
+          data: { labels, datasets: [makeDataset('TVOC ppb', data.map(d => d.tvoc), 'rgb(20,184,166)')] },
+        });
+      }
     } catch (e) {
       console.warn('loadCharts error:', e);
     }

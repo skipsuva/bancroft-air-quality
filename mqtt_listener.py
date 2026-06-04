@@ -61,6 +61,8 @@ def _handle_message(client, userdata, msg) -> None:
     co2       = payload.get("co2")
     temp_c    = payload.get("temp_c")
     humidity  = payload.get("humidity")
+    aqi       = payload.get("aqi")
+    tvoc      = payload.get("tvoc")
     timestamp = payload.get("timestamp") or datetime.now().isoformat(timespec="seconds")
 
     reading = {
@@ -71,6 +73,8 @@ def _handle_message(client, userdata, msg) -> None:
         "humidity_pct": float(humidity) if humidity is not None else None,
         "pm25":         None,   # ESP32 nodes have no PMS5003
         "pm10":         None,
+        "aqi":          int(aqi)        if aqi      is not None else None,
+        "tvoc":         int(tvoc)       if tvoc     is not None else None,
     }
 
     logger.info(
@@ -126,7 +130,7 @@ def _handle_message(client, userdata, msg) -> None:
 
 
 def _average(readings: list[dict]) -> dict:
-    keys = ["co2_ppm", "temp_c", "humidity_pct", "pm25", "pm10"]
+    keys = ["co2_ppm", "temp_c", "humidity_pct", "pm25", "pm10", "aqi", "tvoc"]
     result: dict = {}
     for k in keys:
         vals = [r[k] for r in readings if r.get(k) is not None]

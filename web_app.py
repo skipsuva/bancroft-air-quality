@@ -17,7 +17,12 @@ def create_app(state: dict, lock: threading.Lock) -> Flask:
 
     @app.route("/")
     def index():
-        return render_template("index.html", nodes=config.NODES, node_labels=_web_labels)
+        return render_template(
+            "index.html",
+            nodes=config.NODES,
+            node_labels=_web_labels,
+            ens160_nodes=config.ENS160_NODES,
+        )
 
     @app.route("/api/now")
     def api_now():
