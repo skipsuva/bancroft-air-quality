@@ -42,7 +42,7 @@ NODE_LABELS = {
     "basement":    "Basement",
 }
 
-ENS160_NODES = ["toddler", "bedroom"]
+ENS160_NODES = ["toddler", "bedroom", "wifesoffice"]
 
 CO2_LABELS = [
     (800, "GOOD"),
