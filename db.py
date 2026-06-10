@@ -237,7 +237,42 @@ def get_current() -> dict | None:
         con.close()
 
 
-def get_history(range_str: str, node: str | None = None) -> list[dict]:
+def get_smoothed_current(node: str, minutes: int = 5) -> dict | None:
+    """Return a rolling average of the last `minutes` 1-min readings for a node.
+
+    Falls back to None if fewer than 2 rows exist (node just came online).
+    """
+    con = get_connection()
+    try:
+        row = con.execute(
+            """SELECT AVG(co2_ppm)      AS co2_ppm,
+                      AVG(temp_c)       AS temp_c,
+                      AVG(humidity_pct) AS humidity_pct,
+                      AVG(pm25)         AS pm25,
+                      AVG(pm10)         AS pm10,
+                      AVG(aqi)          AS aqi,
+                      AVG(tvoc)         AS tvoc,
+                      MAX(timestamp)    AS timestamp,
+                      node,
+                      COUNT(*)          AS _count
+               FROM (
+                 SELECT * FROM readings_1min
+                 WHERE node = ?
+                 ORDER BY timestamp DESC
+                 LIMIT ?
+               )""",
+            (node, minutes),
+        ).fetchone()
+        if row and row["_count"] >= 2:
+            d = dict(row)
+            d.pop("_count", None)
+            return d
+        return None
+    finally:
+        con.close()
+
+
+def get_history(range_str: str, node: str | None = None, smooth: bool = False) -> list[dict]:
     # Backward-compat aliases
     _aliases = {"24h": "1d", "7d": "1w", "30d": "1m"}
     range_str = _aliases.get(range_str, range_str)
@@ -251,12 +286,13 @@ def get_history(range_str: str, node: str | None = None) -> list[dict]:
         node_param = ()
 
     now = datetime.now()
+    table_short = "readings_10min" if smooth else "readings_1min"
     con = get_connection()
     try:
         if range_str == "2h":
             cutoff = (now - timedelta(hours=2)).isoformat()
             rows = con.execute(
-                f"SELECT * FROM readings_1min WHERE timestamp >= ? {node_clause} ORDER BY timestamp",
+                f"SELECT * FROM {table_short} WHERE timestamp >= ? {node_clause} ORDER BY timestamp",
                 (cutoff,) + node_param,
             ).fetchall()
             return [dict(r) for r in rows]
@@ -264,7 +300,7 @@ def get_history(range_str: str, node: str | None = None) -> list[dict]:
         elif range_str == "6h":
             cutoff = (now - timedelta(hours=6)).isoformat()
             rows = con.execute(
-                f"SELECT * FROM readings_1min WHERE timestamp >= ? {node_clause} ORDER BY timestamp",
+                f"SELECT * FROM {table_short} WHERE timestamp >= ? {node_clause} ORDER BY timestamp",
                 (cutoff,) + node_param,
             ).fetchall()
             return [dict(r) for r in rows]
@@ -272,7 +308,7 @@ def get_history(range_str: str, node: str | None = None) -> list[dict]:
         elif range_str == "1d":
             cutoff = (now - timedelta(hours=24)).isoformat()
             rows = con.execute(
-                f"SELECT * FROM readings_1min WHERE timestamp >= ? {node_clause} ORDER BY timestamp",
+                f"SELECT * FROM {table_short} WHERE timestamp >= ? {node_clause} ORDER BY timestamp",
                 (cutoff,) + node_param,
             ).fetchall()
             return [dict(r) for r in rows]

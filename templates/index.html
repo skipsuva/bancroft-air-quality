@@ -241,11 +241,17 @@
     <div class="node-card" id="nodecard-{{ node }}" data-node="{{ node }}"
          onclick="switchToRoom('{{ node }}')">
       <div class="node-card-title">{{ node_labels[node] }}</div>
-      <div class="node-co2" id="ov-co2-{{ node }}">—</div>
-      <div class="node-co2-unit">ppm CO₂</div>
-      <div style="display:flex;gap:4px;flex-wrap:wrap;margin-top:5px;">
-        <div class="node-badge" id="ov-badge-{{ node }}" style="margin-top:0;">—</div>
-        <div class="node-badge" id="ov-aqi-badge-{{ node }}" style="margin-top:0;display:none;">—</div>
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;">
+        <div>
+          <div class="node-co2" id="ov-co2-{{ node }}">—</div>
+          <div class="node-co2-unit">ppm CO₂</div>
+          <div class="node-badge" id="ov-badge-{{ node }}" style="margin-top:5px;">—</div>
+        </div>
+        <div style="text-align:right;{% if node not in ens160_nodes %}display:none;{% endif %}">
+          <div class="node-co2" id="ov-aqi-{{ node }}">—</div>
+          <div class="node-co2-unit">AQI</div>
+          <div class="node-badge" id="ov-aqi-badge-{{ node }}" style="margin-top:5px;">—</div>
+        </div>
       </div>
       <div style="position:relative;height:40px;margin-top:8px;">
         <canvas id="ov-spark-{{ node }}"></canvas>
@@ -315,6 +321,7 @@
     <button class="range-btn" data-range="6m">6M</button>
     <button class="range-btn" data-range="1y">1Y</button>
     <button class="range-btn" data-range="all">ALL</button>
+    <button class="range-btn active" id="smooth-toggle" style="margin-left:auto;">Trend</button>
   </div>
 
   <div class="chart-section">
@@ -399,6 +406,7 @@
   let currentTab  = 'overview';
   let currentRoom = 'office';
   let currentRange = '6h';
+  let smoothMode  = true;
   let charts = {};
   let chartRefreshTimer = null;
 
@@ -452,6 +460,8 @@
         document.getElementById(`ov-temp-${node}`).textContent = '—';
         document.getElementById(`ov-hum-${node}`).textContent = '—';
         document.getElementById(`ov-ts-${node}`).textContent = '';
+        const aqiEl = document.getElementById(`ov-aqi-${node}`);
+        if (aqiEl) aqiEl.textContent = '—';
         if (card) card.classList.add('node-offline');
         return;
       }
@@ -471,14 +481,20 @@
       badge.textContent = status.label;
       badge.style.background = stale ? '#aaa' : status.color;
 
-      const aqiBadge = document.getElementById(`ov-aqi-badge-${node}`);
-      if (data.aqi != null && ENS160_NODES.includes(node)) {
-        const aqiS = aqiStatus(data.aqi);
-        aqiBadge.textContent = aqiS.label;
-        aqiBadge.style.background = stale ? '#aaa' : aqiS.color;
-        aqiBadge.style.display = 'inline-block';
-      } else {
-        aqiBadge.style.display = 'none';
+      const aqiValEl  = document.getElementById(`ov-aqi-${node}`);
+      const aqiBadge  = document.getElementById(`ov-aqi-badge-${node}`);
+      if (ENS160_NODES.includes(node)) {
+        if (data.aqi != null) {
+          const aqiS = aqiStatus(data.aqi);
+          if (aqiValEl) aqiValEl.textContent = fmt(data.aqi);
+          if (aqiBadge) {
+            aqiBadge.textContent      = aqiS.label;
+            aqiBadge.style.background = stale ? '#aaa' : aqiS.color;
+          }
+        } else {
+          if (aqiValEl) aqiValEl.textContent = '—';
+          if (aqiBadge) aqiBadge.textContent = '—';
+        }
       }
 
       document.getElementById(`ov-temp-${node}`).textContent =
@@ -603,7 +619,7 @@
   async function loadCharts(range) {
     range = range || currentRange;
     try {
-      const url = `/api/history?range=${range}&node=${currentRoom}`;
+      const url = `/api/history?range=${range}&node=${currentRoom}${smoothMode ? '&smooth=1' : ''}`;
       const data = await fetch(url).then(r => r.json());
       if (!Array.isArray(data) || !data.length) return;
 
@@ -726,7 +742,16 @@
   });
 
   document.querySelectorAll('.range-btn').forEach(btn => {
+    if (btn.id === 'smooth-toggle') return;
     btn.addEventListener('click', () => setRange(btn.dataset.range));
+  });
+
+  document.getElementById('smooth-toggle').addEventListener('click', () => {
+    smoothMode = !smoothMode;
+    const btn = document.getElementById('smooth-toggle');
+    btn.textContent = smoothMode ? 'Trend' : 'Detail';
+    btn.classList.toggle('active', smoothMode);
+    loadCharts(currentRange);
   });
 
   // ── Boot ───────────────────────────────────────────────────────────────────
