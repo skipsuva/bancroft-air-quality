@@ -16,6 +16,13 @@ def _co2_label(co2: float) -> str:
     return "BAD!"
 
 
+_AQI_LABELS = {1: "GOOD", 2: "OK", 3: "POOR", 4: "UNHEALTHY", 5: "HAZARDOUS"}
+
+
+def _aqi_label(aqi: int) -> str:
+    return _AQI_LABELS.get(aqi, "--")
+
+
 class OLEDDisplay:
     def __init__(self, state: dict, lock: threading.Lock) -> None:
         self._state = state
@@ -46,19 +53,19 @@ class OLEDDisplay:
 
     def _draw_screen_1(self, draw, data: dict) -> None:
         co2 = data.get("co2_ppm")
-        pm25 = data.get("pm25")
-        pm10 = data.get("pm10")
+        aqi = data.get("aqi")
+        tvoc = data.get("tvoc")
 
         label = _co2_label(co2) if co2 is not None else "--"
         co2_str = f"CO2: {co2:.0f} ppm" if co2 is not None else "CO2: --"
-        pm25_str = f"PM2.5: {pm25:.0f}" if pm25 is not None else "PM2.5: --"
-        pm10_str = f"PM10: {pm10:.0f}" if pm10 is not None else "PM10: --"
+        aqi_str = f"AQI: {_aqi_label(aqi)}" if aqi is not None else "AQI: --"
+        tvoc_str = f"VOC:{tvoc}" if tvoc is not None else "VOC:--"
 
         label_w = draw.textlength(label, font=self._font_status)
         draw.text(((128 - label_w) // 2, 0), label, fill="white", font=self._font_status)
         draw.text((0, 24), co2_str, fill="white", font=self._font_large)
-        draw.text((0, 42), pm25_str, fill="white", font=self._font_small)
-        draw.text((66, 42), pm10_str, fill="white", font=self._font_small)
+        draw.text((0, 42), aqi_str, fill="white", font=self._font_small)
+        draw.text((66, 42), tvoc_str, fill="white", font=self._font_small)
 
     def _draw_screen_2(self, draw, data: dict) -> None:
         temp_c = data.get("temp_c")

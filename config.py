@@ -4,8 +4,7 @@ DISPLAY_CYCLE_SEC = 5
 
 I2C_BUS = 1
 SCD40_ADDR = 0x62
-PMS5003_PORT = "/dev/serial0"
-PMS5003_BAUD = 9600
+ENS160_ADDR = 0x53
 OLED_ADDR = 0x3C
 OLED_WIDTH = 128
 OLED_HEIGHT = 64
@@ -17,10 +16,6 @@ ALERT_COOLDOWN_MIN = 30
 
 CO2_WARN_PPM = 1000
 CO2_CRITICAL_PPM = 1500
-PM25_WARN = 25
-PM25_CRITICAL = 55
-PM10_WARN = 50
-PM10_CRITICAL = 150
 
 SUMMARY_HOUR = 8
 
@@ -42,7 +37,7 @@ NODE_LABELS = {
     "basement":    "Basement",
 }
 
-ENS160_NODES = ["toddler", "bedroom", "wifesoffice"]
+ENS160_NODES = ["office", "toddler", "bedroom", "wifesoffice"]
 
 CO2_LABELS = [
     (800, "GOOD"),

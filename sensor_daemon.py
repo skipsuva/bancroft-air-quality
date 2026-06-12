@@ -21,8 +21,8 @@ _state: dict = {
     "co2_ppm": None,
     "temp_c": None,
     "humidity_pct": None,
-    "pm25": None,
-    "pm10": None,
+    "aqi": None,
+    "tvoc": None,
 }
 _state_lock = threading.Lock()
 _shutdown = threading.Event()
@@ -64,43 +64,30 @@ def _scd40_read(bus: smbus2.SMBus) -> tuple[float, float, float] | None:
     return co2, temp_c, humidity
 
 
-def _pms5003_read(ser) -> tuple[float, float] | None:
-    ser.reset_input_buffer()
-    deadline = time.monotonic() + 5.0
+def _ens160_init(bus: smbus2.SMBus) -> None:
+    bus.write_i2c_block_data(config.ENS160_ADDR, 0x10, [0xF0])
+    time.sleep(0.1)
+    bus.write_i2c_block_data(config.ENS160_ADDR, 0x10, [0x02])
+    time.sleep(0.1)
+    logger.info("ENS160 initialized")
 
-    synced = False
-    while time.monotonic() < deadline:
-        b = ser.read(1)
-        if not b:
+
+def _ens160_read(bus: smbus2.SMBus) -> tuple[int, int] | None:
+    for _ in range(3):
+        bus.write_i2c_block_data(config.ENS160_ADDR, 0x10, [0x02])
+        time.sleep(0.5)
+        status = bus.read_byte_data(config.ENS160_ADDR, 0x20)
+        if status == 0x03:
             continue
-        if b == b"\x42":
-            b2 = ser.read(1)
-            if b2 == b"\x4D":
-                synced = True
-                break
-
-    if not synced:
-        return None
-
-    rest = ser.read(30)
-    if len(rest) < 30:
-        return None
-
-    frame = b"\x42\x4D" + rest
-    checksum = sum(frame[:-2])
-    expected = (frame[-2] << 8) | frame[-1]
-    if checksum != expected:
-        logger.warning("PMS5003 checksum mismatch")
-        return None
-
-    # Atmospheric concentration values (standard for indoor air quality)
-    pm25 = float((rest[10] << 8) | rest[11])
-    pm10 = float((rest[12] << 8) | rest[13])
-    return pm25, pm10
+        aqi = bus.read_byte_data(config.ENS160_ADDR, 0x21)
+        tvoc_b = bus.read_i2c_block_data(config.ENS160_ADDR, 0x22, 2)
+        tvoc = tvoc_b[0] | (tvoc_b[1] << 8)
+        return aqi, tvoc
+    return None
 
 
 def _average(readings: list[dict], node: str = "office") -> dict:
-    keys = ["co2_ppm", "temp_c", "humidity_pct", "pm25", "pm10"]
+    keys = ["co2_ppm", "temp_c", "humidity_pct", "aqi", "tvoc", "pm25", "pm10"]
     result: dict = {}
     for k in keys:
         vals = [r[k] for r in readings if r.get(k) is not None]
@@ -131,9 +118,6 @@ def _compute_daily_summary(target_date: date, node: str = "office") -> dict | No
     co2_vals = [r["co2_ppm"] for r in readings if r.get("co2_ppm") is not None]
     temp_vals = [r["temp_c"] for r in readings if r.get("temp_c") is not None]
     hum_vals = [r["humidity_pct"] for r in readings if r.get("humidity_pct") is not None]
-    pm25_vals = [r["pm25"] for r in readings if r.get("pm25") is not None]
-    pm10_vals = [r["pm10"] for r in readings if r.get("pm10") is not None]
-
     if not co2_vals:
         return None
 
@@ -151,23 +135,21 @@ def _compute_daily_summary(target_date: date, node: str = "office") -> dict | No
         "co2_max_time": co2_max_time,
         "temp_avg": round(sum(temp_vals) / len(temp_vals), 1) if temp_vals else None,
         "humidity_avg": round(sum(hum_vals) / len(hum_vals), 1) if hum_vals else None,
-        "pm25_avg": round(sum(pm25_vals) / len(pm25_vals), 1) if pm25_vals else None,
-        "pm25_max": round(max(pm25_vals), 0) if pm25_vals else None,
-        "pm10_avg": round(sum(pm10_vals) / len(pm10_vals), 1) if pm10_vals else None,
-        "pm10_max": round(max(pm10_vals), 0) if pm10_vals else None,
     }
 
 
 def sensor_loop(notifier: Notifier) -> None:
-    import serial
-
     bus = smbus2.SMBus(config.I2C_BUS)
-    ser = serial.Serial(config.PMS5003_PORT, config.PMS5003_BAUD, timeout=2)
 
     try:
         _scd40_init(bus)
     except Exception as e:
         logger.error("SCD40 init failed: %s", e)
+
+    try:
+        _ens160_init(bus)
+    except Exception as e:
+        logger.error("ENS160 init failed: %s", e)
 
     mqtt_client = _mqtt_connect()
 
@@ -176,7 +158,6 @@ def sensor_loop(notifier: Notifier) -> None:
     last_1min_write = datetime.now()
     last_10min_write = datetime.now()
     co2_high_streak = 0
-    pm_elevated_streak = 0
     # Seed from DB so a daemon restart after 08:00 doesn't re-send the daily summary.
     _latest_summary = db.get_latest_summary_date()
     now_startup = datetime.now()
@@ -193,27 +174,29 @@ def sensor_loop(notifier: Notifier) -> None:
             now = datetime.now()
 
             scd = None
-            pms = None
+            ens = None
             try:
                 scd = _scd40_read(bus)
             except Exception as e:
                 logger.error("SCD40 read error: %s", e)
             try:
-                pms = _pms5003_read(ser)
+                ens = _ens160_read(bus)
             except Exception as e:
-                logger.error("PMS5003 read error: %s", e)
+                logger.error("ENS160 read error: %s", e)
 
-            if scd or pms:
+            if scd or ens:
                 co2, temp_c, humidity = scd if scd else (None, None, None)
-                pm25, pm10 = pms if pms else (None, None)
+                aqi, tvoc = ens if ens else (None, None)
 
                 reading = {
                     "timestamp": now.isoformat(timespec="seconds"),
                     "co2_ppm": co2,
                     "temp_c": round(temp_c, 2) if temp_c is not None else None,
                     "humidity_pct": round(humidity, 2) if humidity is not None else None,
-                    "pm25": pm25,
-                    "pm10": pm10,
+                    "aqi": aqi,
+                    "tvoc": tvoc,
+                    "pm25": None,
+                    "pm10": None,
                     "node": "office",
                 }
 
@@ -228,13 +211,6 @@ def sensor_loop(notifier: Notifier) -> None:
                 else:
                     co2_high_streak = 0
 
-                pm25_val = pm25 or 0
-                pm10_val = pm10 or 0
-                if pm25_val > config.PM25_WARN or pm10_val > config.PM10_WARN:
-                    pm_elevated_streak += 1
-                else:
-                    pm_elevated_streak = 0
-
                 try:
                     db.upsert_current(reading)
                     db.upsert_node_current(reading)
@@ -242,23 +218,21 @@ def sensor_loop(notifier: Notifier) -> None:
                     logger.error("DB upsert error: %s", e)
 
                 try:
-                    notifier.check_and_alert(reading, co2_high_streak, pm_elevated_streak, node="office")
+                    notifier.check_and_alert(reading, co2_high_streak, node="office")
                 except Exception as e:
                     logger.error("Notifier error: %s", e)
 
                 logger.debug(
-                    "CO2=%s pm25=%s pm10=%s temp=%s hum=%s co2_streak=%d pm_streak=%d",
+                    "CO2=%s aqi=%s tvoc=%s temp=%s hum=%s co2_streak=%d",
                     f"{co2:.0f}" if co2 is not None else "N/A",
-                    f"{pm25:.0f}" if pm25 is not None else "N/A",
-                    f"{pm10:.0f}" if pm10 is not None else "N/A",
+                    aqi if aqi is not None else "N/A",
+                    tvoc if tvoc is not None else "N/A",
                     f"{temp_c:.1f}" if temp_c is not None else "N/A",
                     f"{humidity:.1f}" if humidity is not None else "N/A",
                     co2_high_streak,
-                    pm_elevated_streak,
                 )
             else:
                 co2_high_streak = 0
-                pm_elevated_streak = 0
 
             if (now - last_1min_write).total_seconds() >= 60 and accum_1min:
                 avg = _average(accum_1min, node="office")
@@ -278,8 +252,8 @@ def sensor_loop(notifier: Notifier) -> None:
                             "co2":       avg["co2_ppm"],
                             "temp_c":    avg["temp_c"],
                             "humidity":  avg["humidity_pct"],
-                            "pm25":      avg["pm25"],
-                            "pm10":      avg["pm10"],
+                            "aqi":       avg["aqi"],
+                            "tvoc":      avg["tvoc"],
                             "timestamp": avg["timestamp"],
                         })
                         mqtt_client.publish(config.MQTT_TOPIC_PUBLISH, payload, qos=0)
@@ -321,7 +295,6 @@ def sensor_loop(notifier: Notifier) -> None:
             _shutdown.wait(max(0.0, config.SENSOR_READ_INTERVAL_SEC - elapsed))
     finally:
         bus.close()
-        ser.close()
         if mqtt_client is not None:
             try:
                 mqtt_client.loop_stop()

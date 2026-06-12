@@ -432,7 +432,7 @@
       updateDetailCurrent();
       setRange(currentRange, /*force=*/true);
       // Show/hide PM cards for office only
-      const hasParticulate = (currentRoom === 'office');
+      const hasParticulate = false;
       document.getElementById('detail-card-pm25').classList.toggle('dim', !hasParticulate);
       document.getElementById('detail-card-pm10').classList.toggle('dim', !hasParticulate);
       document.getElementById('pm-chart-section').classList.toggle('hidden', !hasParticulate);
