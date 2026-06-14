@@ -167,6 +167,7 @@
       background: #aaa;
     }
     .card.dim { opacity: 0.4; }
+    .card.hidden { display: none; }
 
     /* ── Charts ── */
     .range-bar {
@@ -243,11 +244,13 @@
       <div class="node-card-title">{{ node_labels[node] }}</div>
       <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;">
         <div>
-          <div class="node-co2" id="ov-co2-{{ node }}">—</div>
-          <div class="node-co2-unit">ppm CO₂</div>
+          <div class="node-co2" id="ov-co2-{{ node }}"{% if not node_sensors[node]['co2'] %} style="display:none"{% endif %}>—</div>
+          <div class="node-co2-unit"{% if not node_sensors[node]['co2'] %} style="display:none"{% endif %}>ppm CO₂</div>
+          <div class="node-co2" id="ov-pm25-{{ node }}"{% if not node_sensors[node]['eco2'] %} style="display:none"{% endif %}>—</div>
+          <div class="node-co2-unit"{% if not node_sensors[node]['eco2'] %} style="display:none"{% endif %}>µg/m³ PM2.5</div>
           <div class="node-badge" id="ov-badge-{{ node }}" style="margin-top:5px;">—</div>
         </div>
-        <div style="text-align:right;{% if node not in ens160_nodes %}display:none;{% endif %}">
+        <div style="text-align:right;{% if not node_sensors[node]['aqi'] %}display:none;{% endif %}">
           <div class="node-co2" id="ov-aqi-{{ node }}">—</div>
           <div class="node-co2-unit">AQI</div>
           <div class="node-badge" id="ov-aqi-badge-{{ node }}" style="margin-top:5px;">—</div>
@@ -278,6 +281,11 @@
       <div class="card-value" id="d-co2">—</div>
       <div class="card-unit">ppm</div>
       <div class="card-badge" id="d-co2-badge">—</div>
+    </div>
+    <div class="card hidden" id="detail-card-eco2">
+      <div class="card-label">eCO₂ (est.)</div>
+      <div class="card-value" id="d-eco2">—</div>
+      <div class="card-unit">ppm</div>
     </div>
     <div class="card" id="detail-card-pm25">
       <div class="card-label">PM2.5</div>
@@ -325,16 +333,20 @@
   </div>
 
   <div class="chart-section">
+    <div class="chart-title" id="title-temp">Temperature — last 24 hours</div>
+    <div class="chart-wrap"><canvas id="temp-chart"></canvas></div>
+  </div>
+  <div class="chart-section">
+    <div class="chart-title" id="title-hum">Humidity — last 24 hours</div>
+    <div class="chart-wrap"><canvas id="hum-chart"></canvas></div>
+  </div>
+  <div class="chart-section" id="co2-chart-section">
     <div class="chart-title" id="title-co2">CO₂ — last 24 hours</div>
     <div class="chart-wrap"><canvas id="co2-chart"></canvas></div>
   </div>
   <div class="chart-section" id="pm-chart-section">
     <div class="chart-title" id="title-pm25">PM2.5 — last 24 hours</div>
     <div class="chart-wrap"><canvas id="pm25-chart"></canvas></div>
-  </div>
-  <div class="chart-section">
-    <div class="chart-title" id="title-temp">Temperature — last 24 hours</div>
-    <div class="chart-wrap"><canvas id="temp-chart"></canvas></div>
   </div>
   <div class="chart-section" id="aqi-chart-section">
     <div class="chart-title" id="title-aqi">AQI — last 6 hours</div>
@@ -343,6 +355,10 @@
   <div class="chart-section" id="tvoc-chart-section">
     <div class="chart-title" id="title-tvoc">TVOC — last 6 hours</div>
     <div class="chart-wrap"><canvas id="tvoc-chart"></canvas></div>
+  </div>
+  <div class="chart-section hidden" id="eco2-chart-section">
+    <div class="chart-title" id="title-eco2">eCO₂ (est.) — last 6 hours</div>
+    <div class="chart-wrap"><canvas id="eco2-chart"></canvas></div>
   </div>
 </div>
 
@@ -355,9 +371,12 @@
     { max: Infinity, label: 'BAD!', color: '#ef4444' },
   ];
 
-  const NODE_LABELS  = {{ node_labels | tojson }};
-  const NODES        = {{ nodes | tojson }};
-  const ENS160_NODES = {{ ens160_nodes | tojson }};
+  const NODE_LABELS   = {{ node_labels | tojson }};
+  const NODES         = {{ nodes | tojson }};
+  const NODE_SENSORS  = {{ node_sensors | tojson }};
+  const ENS160_NODES  = {{ ens160_nodes | tojson }};
+  const PM_NODES      = {{ pm_nodes | tojson }};
+  const ECO2_NODES    = {{ eco2_nodes | tojson }};
 
   const AQI_THRESHOLDS = [
     { max: 1,        label: 'GOOD',      color: '#22c55e' },
@@ -370,6 +389,12 @@
     { max: 150,      label: 'GOOD',      color: '#22c55e' },
     { max: 250,      label: 'OK',        color: '#eab308' },
     { max: 500,      label: 'POOR',      color: '#f97316' },
+    { max: Infinity, label: 'UNHEALTHY', color: '#ef4444' },
+  ];
+  const PM25_THRESHOLDS = [
+    { max: 12,       label: 'GOOD',      color: '#22c55e' },
+    { max: 35,       label: 'OK',        color: '#eab308' },
+    { max: 55,       label: 'POOR',      color: '#f97316' },
     { max: Infinity, label: 'UNHEALTHY', color: '#ef4444' },
   ];
 
@@ -385,6 +410,9 @@
   }
   function tvocStatus(ppb) {
     return TVOC_THRESHOLDS.find(t => ppb < t.max) || TVOC_THRESHOLDS.at(-1);
+  }
+  function pm25Status(val) {
+    return PM25_THRESHOLDS.find(t => val < t.max) || PM25_THRESHOLDS.at(-1);
   }
 
   function fmt(val, digits = 0) {
@@ -431,17 +459,18 @@
       currentRoom = tab;
       updateDetailCurrent();
       setRange(currentRange, /*force=*/true);
-      // Show/hide PM cards for office only
-      const hasParticulate = false;
-      document.getElementById('detail-card-pm25').classList.toggle('dim', !hasParticulate);
-      document.getElementById('detail-card-pm10').classList.toggle('dim', !hasParticulate);
-      document.getElementById('pm-chart-section').classList.toggle('hidden', !hasParticulate);
-      // Show/hide ENS160 cards and charts
-      const hasENS160 = ENS160_NODES.includes(currentRoom);
-      document.getElementById('detail-card-aqi').classList.toggle('dim', !hasENS160);
-      document.getElementById('detail-card-tvoc').classList.toggle('dim', !hasENS160);
-      document.getElementById('aqi-chart-section').classList.toggle('hidden', !hasENS160);
-      document.getElementById('tvoc-chart-section').classList.toggle('hidden', !hasENS160);
+      const sensors = NODE_SENSORS[currentRoom] || {};
+      document.getElementById('detail-card-pm25').classList.toggle('hidden', !sensors.pm);
+      document.getElementById('detail-card-pm10').classList.toggle('hidden', !sensors.pm);
+      document.getElementById('pm-chart-section').classList.toggle('hidden', !sensors.pm);
+      document.getElementById('detail-card-co2').classList.toggle('hidden', !sensors.co2);
+      document.getElementById('co2-chart-section').classList.toggle('hidden', !sensors.co2);
+      document.getElementById('detail-card-eco2').classList.toggle('hidden', !sensors.eco2);
+      document.getElementById('eco2-chart-section').classList.toggle('hidden', !sensors.eco2);
+      document.getElementById('detail-card-aqi').classList.toggle('hidden', !sensors.aqi);
+      document.getElementById('detail-card-tvoc').classList.toggle('hidden', !sensors.tvoc);
+      document.getElementById('aqi-chart-section').classList.toggle('hidden', !sensors.aqi);
+      document.getElementById('tvoc-chart-section').classList.toggle('hidden', !sensors.tvoc);
       document.getElementById('detail-title').textContent = NODE_LABELS[currentRoom] || currentRoom;
     }
   }
@@ -453,8 +482,11 @@
     NODES.forEach(node => {
       const data = allData[node];
       const card = document.getElementById(`nodecard-${node}`);
-      if (!data || data.co2_ppm == null) {
-        document.getElementById(`ov-co2-${node}`).textContent = '—';
+      if (!data) {
+        const co2El = document.getElementById(`ov-co2-${node}`);
+        if (co2El) co2El.textContent = '—';
+        const pm25El = document.getElementById(`ov-pm25-${node}`);
+        if (pm25El) pm25El.textContent = '—';
         document.getElementById(`ov-badge-${node}`).textContent = '—';
         document.getElementById(`ov-badge-${node}`).style.background = '#aaa';
         document.getElementById(`ov-temp-${node}`).textContent = '—';
@@ -475,11 +507,27 @@
         if (stale) card.classList.add('node-stale');
       }
 
-      const status = co2Status(data.co2_ppm);
-      document.getElementById(`ov-co2-${node}`).textContent = fmt(data.co2_ppm);
       const badge = document.getElementById(`ov-badge-${node}`);
-      badge.textContent = status.label;
-      badge.style.background = stale ? '#aaa' : status.color;
+      if (ECO2_NODES.includes(node)) {
+        // Kitchen: PM2.5 as primary metric, AQI badge
+        const pm25El = document.getElementById(`ov-pm25-${node}`);
+        if (pm25El) pm25El.textContent = data.pm25 != null ? fmt(data.pm25, 1) : '—';
+        if (data.aqi != null) {
+          const s = aqiStatus(data.aqi);
+          badge.textContent = s.label;
+          badge.style.background = stale ? '#aaa' : s.color;
+        } else {
+          badge.textContent = '—';
+          badge.style.background = '#aaa';
+        }
+      } else {
+        // Standard: CO2 as primary metric
+        const co2El = document.getElementById(`ov-co2-${node}`);
+        if (co2El) co2El.textContent = fmt(data.co2_ppm);
+        const status = co2Status(data.co2_ppm);
+        badge.textContent = status.label;
+        badge.style.background = stale ? '#aaa' : status.color;
+      }
 
       const aqiValEl  = document.getElementById(`ov-aqi-${node}`);
       const aqiBadge  = document.getElementById(`ov-aqi-badge-${node}`);
@@ -520,6 +568,7 @@
     if (!data) return;
 
     document.getElementById('d-co2').textContent  = fmt(data.co2_ppm);
+    document.getElementById('d-eco2').textContent = fmt(data.eco2);
     document.getElementById('d-pm25').textContent = fmt(data.pm25, 1);
     document.getElementById('d-pm10').textContent  = fmt(data.pm10, 1);
     document.getElementById('d-temp').textContent  = fmt(toF(data.temp_c), 1);
@@ -609,11 +658,13 @@
 
   function updateChartTitles(range) {
     const suffix = RANGE_LABELS[range] || range;
+    document.getElementById('title-temp').textContent = `Temperature — ${suffix}`;
+    document.getElementById('title-hum').textContent  = `Humidity — ${suffix}`;
     document.getElementById('title-co2').textContent  = `CO₂ — ${suffix}`;
     document.getElementById('title-pm25').textContent = `PM2.5 — ${suffix}`;
-    document.getElementById('title-temp').textContent = `Temperature — ${suffix}`;
     document.getElementById('title-aqi').textContent  = `AQI — ${suffix}`;
     document.getElementById('title-tvoc').textContent = `TVOC — ${suffix}`;
+    document.getElementById('title-eco2').textContent = `eCO₂ (est.) — ${suffix}`;
   }
 
   async function loadCharts(range) {
@@ -643,6 +694,12 @@
         data: { labels, datasets: [makeDataset('Temp °F', data.map(d => toF(d.temp_c)), 'rgb(34,197,94)')] },
       });
 
+      if (charts.hum) charts.hum.destroy();
+      charts.hum = new Chart(document.getElementById('hum-chart'), {
+        ...CHART_DEFAULTS,
+        data: { labels, datasets: [makeDataset('Humidity %RH', data.map(d => d.humidity_pct), 'rgb(56,189,248)')] },
+      });
+
       if (ENS160_NODES.includes(currentRoom)) {
         if (charts.aqi) charts.aqi.destroy();
         charts.aqi = new Chart(document.getElementById('aqi-chart'), {
@@ -653,6 +710,13 @@
         charts.tvoc = new Chart(document.getElementById('tvoc-chart'), {
           ...CHART_DEFAULTS,
           data: { labels, datasets: [makeDataset('TVOC ppb', data.map(d => d.tvoc), 'rgb(20,184,166)')] },
+        });
+      }
+      if (ECO2_NODES.includes(currentRoom)) {
+        if (charts.eco2) charts.eco2.destroy();
+        charts.eco2 = new Chart(document.getElementById('eco2-chart'), {
+          ...CHART_DEFAULTS,
+          data: { labels, datasets: [makeDataset('eCO₂ ppm', data.map(d => d.eco2), 'rgb(251,146,60)')] },
         });
       }
     } catch (e) {
@@ -693,11 +757,14 @@
     NODES.forEach(node => {
       const nodeRows = byNode[node] || [];
       const labels = nodeRows.map(r => r.timestamp);
-      const values = nodeRows.map(r => r.co2_ppm);
+      const isEco2Node = ECO2_NODES.includes(node);
+      const values = nodeRows.map(r => isEco2Node ? r.pm25 : r.co2_ppm);
 
-      // Pick line color from the latest CO₂ value
+      // Pick line color from the latest primary metric value
       const lastVal = values.filter(v => v != null).at(-1);
-      const lineColor = lastVal != null ? co2Status(lastVal).color : '#aaa';
+      const lineColor = lastVal != null
+        ? (isEco2Node ? pm25Status(lastVal).color : co2Status(lastVal).color)
+        : '#aaa';
 
       const canvas = document.getElementById(`ov-spark-${node}`);
       if (!canvas) return;

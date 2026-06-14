@@ -8,7 +8,9 @@ Each ESP32 publishes every 60 seconds, so each arriving message is treated as a
 1-minute sample and written directly to readings_1min.  A per-node accumulator
 drives the 10-minute average writes (flush after ≥ 600 seconds per node).
 
-ESP32 nodes have SCD40 only (no PMS5003), so pm25/pm10 are stored as NULL.
+Most ESP32 nodes have SCD40 + ENS160 only (no PMS5003), so pm25/pm10 are NULL.
+The kitchen node is an exception: it has ENS160 + PMS5003 but no SCD40, so
+co2_ppm is NULL and eco2 is used as the CO₂ proxy.
 
 Run via mqtt_listener.service; logs go to stdout (captured by journald).
 """
@@ -63,6 +65,9 @@ def _handle_message(client, userdata, msg) -> None:
     humidity  = payload.get("humidity")
     aqi       = payload.get("aqi")
     tvoc      = payload.get("tvoc")
+    eco2      = payload.get("eco2")
+    pm25      = payload.get("pm25")
+    pm10      = payload.get("pm10")
     timestamp = payload.get("timestamp") or datetime.now().isoformat(timespec="seconds")
 
     reading = {
@@ -71,10 +76,11 @@ def _handle_message(client, userdata, msg) -> None:
         "co2_ppm":      float(co2)      if co2      is not None else None,
         "temp_c":       float(temp_c)   if temp_c   is not None else None,
         "humidity_pct": float(humidity) if humidity is not None else None,
-        "pm25":         None,   # ESP32 nodes have no PMS5003
-        "pm10":         None,
+        "pm25":         float(pm25)     if pm25     is not None else None,
+        "pm10":         float(pm10)     if pm10     is not None else None,
         "aqi":          int(aqi)        if aqi      is not None else None,
         "tvoc":         int(tvoc)       if tvoc     is not None else None,
+        "eco2":         int(eco2)       if eco2     is not None else None,
     }
 
     logger.info(
@@ -110,7 +116,6 @@ def _handle_message(client, userdata, msg) -> None:
         _notifier.check_and_alert(
             reading,
             co2_high_streak=state["co2_high_streak"],
-            pm_elevated_streak=0,  # ESP32 nodes have no PMS5003
             node=node,
             co2_high_streak_threshold=config.CO2_HIGH_STREAK_MQTT,
         )
@@ -130,7 +135,7 @@ def _handle_message(client, userdata, msg) -> None:
 
 
 def _average(readings: list[dict]) -> dict:
-    keys = ["co2_ppm", "temp_c", "humidity_pct", "pm25", "pm10", "aqi", "tvoc"]
+    keys = ["co2_ppm", "temp_c", "humidity_pct", "pm25", "pm10", "aqi", "tvoc", "eco2"]
     result: dict = {}
     for k in keys:
         vals = [r[k] for r in readings if r.get(k) is not None]

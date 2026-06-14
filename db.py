@@ -14,7 +14,8 @@ CREATE TABLE IF NOT EXISTS readings_1min (
     pm10         REAL,
     node         TEXT DEFAULT 'office',
     aqi          INTEGER,
-    tvoc         INTEGER
+    tvoc         INTEGER,
+    eco2         INTEGER
 )
 """
 
@@ -29,7 +30,8 @@ CREATE TABLE IF NOT EXISTS readings_10min (
     pm10         REAL,
     node         TEXT DEFAULT 'office',
     aqi          INTEGER,
-    tvoc         INTEGER
+    tvoc         INTEGER,
+    eco2         INTEGER
 )
 """
 
@@ -69,7 +71,8 @@ CREATE TABLE IF NOT EXISTS node_current (
     pm25         REAL,
     pm10         REAL,
     aqi          INTEGER,
-    tvoc         INTEGER
+    tvoc         INTEGER,
+    eco2         INTEGER
 )
 """
 
@@ -114,6 +117,16 @@ def _migrate(con: sqlite3.Connection) -> None:
         con.execute("ALTER TABLE node_current ADD COLUMN aqi INTEGER")
     if "tvoc" not in existing:
         con.execute("ALTER TABLE node_current ADD COLUMN tvoc INTEGER")
+    if "eco2" not in existing:
+        con.execute("ALTER TABLE node_current ADD COLUMN eco2 INTEGER")
+
+    for tbl in ("readings_1min", "readings_10min"):
+        existing = {
+            row[1]
+            for row in con.execute(f"PRAGMA table_info({tbl})").fetchall()
+        }
+        if "eco2" not in existing:
+            con.execute(f"ALTER TABLE {tbl} ADD COLUMN eco2 INTEGER")
 
     con.commit()
 
@@ -164,9 +177,9 @@ def upsert_node_current(reading: dict) -> None:
     try:
         con.execute(
             """INSERT OR REPLACE INTO node_current
-               (node, timestamp, co2_ppm, temp_c, humidity_pct, pm25, pm10, aqi, tvoc)
-               VALUES (:node, :timestamp, :co2_ppm, :temp_c, :humidity_pct, :pm25, :pm10, :aqi, :tvoc)""",
-            {**reading, "aqi": reading.get("aqi"), "tvoc": reading.get("tvoc")},
+               (node, timestamp, co2_ppm, temp_c, humidity_pct, pm25, pm10, aqi, tvoc, eco2)
+               VALUES (:node, :timestamp, :co2_ppm, :temp_c, :humidity_pct, :pm25, :pm10, :aqi, :tvoc, :eco2)""",
+            {**reading, "aqi": reading.get("aqi"), "tvoc": reading.get("tvoc"), "eco2": reading.get("eco2")},
         )
         con.commit()
     finally:
@@ -191,9 +204,9 @@ def insert_reading(table: str, reading: dict) -> None:
     try:
         con.execute(
             f"""INSERT INTO {table}
-                (timestamp, co2_ppm, temp_c, humidity_pct, pm25, pm10, node, aqi, tvoc)
-                VALUES (:timestamp, :co2_ppm, :temp_c, :humidity_pct, :pm25, :pm10, :node, :aqi, :tvoc)""",
-            {**reading, "node": node, "aqi": reading.get("aqi"), "tvoc": reading.get("tvoc")},
+                (timestamp, co2_ppm, temp_c, humidity_pct, pm25, pm10, node, aqi, tvoc, eco2)
+                VALUES (:timestamp, :co2_ppm, :temp_c, :humidity_pct, :pm25, :pm10, :node, :aqi, :tvoc, :eco2)""",
+            {**reading, "node": node, "aqi": reading.get("aqi"), "tvoc": reading.get("tvoc"), "eco2": reading.get("eco2")},
         )
         con.commit()
     finally:
@@ -252,6 +265,7 @@ def get_smoothed_current(node: str, minutes: int = 5) -> dict | None:
                       AVG(pm10)         AS pm10,
                       AVG(aqi)          AS aqi,
                       AVG(tvoc)         AS tvoc,
+                      AVG(eco2)         AS eco2,
                       MAX(timestamp)    AS timestamp,
                       node,
                       COUNT(*)          AS _count
@@ -341,7 +355,8 @@ def get_history(range_str: str, node: str | None = None, smooth: bool = False) -
                           AVG(pm10)         AS pm10,
                           node,
                           AVG(aqi)          AS aqi,
-                          AVG(tvoc)         AS tvoc
+                          AVG(tvoc)         AS tvoc,
+                          AVG(eco2)         AS eco2
                    FROM readings_10min
                    WHERE timestamp >= ? {node_clause}
                    GROUP BY strftime('%Y-%m-%dT%H:00:00', timestamp), node

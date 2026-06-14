@@ -13,7 +13,7 @@ def create_app(state: dict, lock: threading.Lock) -> Flask:
     app = Flask(__name__)
     app.logger.setLevel(logging.WARNING)
 
-    _web_labels = {**config.NODE_LABELS, "toddler": "Mari's Room", "wifesoffice": "Em's Office"}
+    _web_labels = {**config.NODE_LABELS, "toddler": "Mari's Room", "wifesoffice": "Em's Office", "kitchen": "Kitchen"}
 
     @app.route("/")
     def index():
@@ -21,7 +21,10 @@ def create_app(state: dict, lock: threading.Lock) -> Flask:
             "index.html",
             nodes=config.NODES,
             node_labels=_web_labels,
+            node_sensors=config.NODE_SENSORS,
             ens160_nodes=config.ENS160_NODES,
+            pm_nodes=config.PM_NODES,
+            eco2_nodes=config.ECO2_NODES,
         )
 
     @app.route("/api/now")

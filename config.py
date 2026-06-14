@@ -28,16 +28,28 @@ MQTT_TOPIC_SUBSCRIBE = "bancroft/+/readings"
 MQTT_TOPIC_PUBLISH = "bancroft/office/readings"
 
 # Node names (office is this Pi; others are ESP32 nodes)
-NODES = ["office", "bedroom", "toddler", "wifesoffice", "basement"]
+NODES = ["office", "bedroom", "toddler", "wifesoffice", "basement", "kitchen"]
 NODE_LABELS = {
     "office":      "Office",
     "bedroom":     "Bedroom",
     "toddler":     "Mari's Room",
     "wifesoffice": "Wife's Office",
     "basement":    "Basement",
+    "kitchen":     "Kitchen",
 }
 
-ENS160_NODES = ["office", "toddler", "bedroom", "wifesoffice"]
+NODE_SENSORS = {
+    "office":      {"co2": True,  "temp": True, "humidity": True, "aqi": True,  "tvoc": True,  "pm": False, "eco2": False},
+    "bedroom":     {"co2": True,  "temp": True, "humidity": True, "aqi": True,  "tvoc": True,  "pm": False, "eco2": False},
+    "toddler":     {"co2": True,  "temp": True, "humidity": True, "aqi": True,  "tvoc": True,  "pm": False, "eco2": False},
+    "wifesoffice": {"co2": True,  "temp": True, "humidity": True, "aqi": True,  "tvoc": True,  "pm": False, "eco2": False},
+    "basement":    {"co2": True,  "temp": True, "humidity": True, "aqi": False, "tvoc": False, "pm": False, "eco2": False},
+    "kitchen":     {"co2": False, "temp": True, "humidity": True, "aqi": True,  "tvoc": True,  "pm": True,  "eco2": True},
+}
+
+ENS160_NODES = [n for n, s in NODE_SENSORS.items() if s["aqi"]]
+PM_NODES     = [n for n, s in NODE_SENSORS.items() if s["pm"]]
+ECO2_NODES   = [n for n, s in NODE_SENSORS.items() if s["eco2"]]
 
 CO2_LABELS = [
     (800, "GOOD"),
