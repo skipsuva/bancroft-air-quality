@@ -16,7 +16,7 @@ def _co2_label(co2: float) -> str:
     return "BAD!"
 
 
-_AQI_LABELS = {1: "GOOD", 2: "OK", 3: "POOR", 4: "UNHEALTHY", 5: "HAZARDOUS"}
+_AQI_LABELS = {1: "EXCELLENT", 2: "GOOD", 3: "MODERATE", 4: "POOR", 5: "UNHEALTHY"}
 
 
 def _aqi_label(aqi: int) -> str:

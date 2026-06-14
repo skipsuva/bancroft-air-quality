@@ -332,33 +332,35 @@
     <button class="range-btn active" id="smooth-toggle" style="margin-left:auto;">Trend</button>
   </div>
 
-  <div class="chart-section">
-    <div class="chart-title" id="title-temp">Temperature — last 24 hours</div>
-    <div class="chart-wrap"><canvas id="temp-chart"></canvas></div>
-  </div>
-  <div class="chart-section">
-    <div class="chart-title" id="title-hum">Humidity — last 24 hours</div>
-    <div class="chart-wrap"><canvas id="hum-chart"></canvas></div>
-  </div>
-  <div class="chart-section" id="co2-chart-section">
-    <div class="chart-title" id="title-co2">CO₂ — last 24 hours</div>
-    <div class="chart-wrap"><canvas id="co2-chart"></canvas></div>
-  </div>
-  <div class="chart-section" id="pm-chart-section">
-    <div class="chart-title" id="title-pm25">PM2.5 — last 24 hours</div>
-    <div class="chart-wrap"><canvas id="pm25-chart"></canvas></div>
-  </div>
-  <div class="chart-section" id="aqi-chart-section">
-    <div class="chart-title" id="title-aqi">AQI — last 6 hours</div>
-    <div class="chart-wrap"><canvas id="aqi-chart"></canvas></div>
-  </div>
-  <div class="chart-section" id="tvoc-chart-section">
-    <div class="chart-title" id="title-tvoc">TVOC — last 6 hours</div>
-    <div class="chart-wrap"><canvas id="tvoc-chart"></canvas></div>
-  </div>
-  <div class="chart-section hidden" id="eco2-chart-section">
-    <div class="chart-title" id="title-eco2">eCO₂ (est.) — last 6 hours</div>
-    <div class="chart-wrap"><canvas id="eco2-chart"></canvas></div>
+  <div id="charts-container">
+    <div class="chart-section">
+      <div class="chart-title" id="title-temp">Temperature — last 24 hours</div>
+      <div class="chart-wrap"><canvas id="temp-chart"></canvas></div>
+    </div>
+    <div class="chart-section">
+      <div class="chart-title" id="title-hum">Humidity — last 24 hours</div>
+      <div class="chart-wrap"><canvas id="hum-chart"></canvas></div>
+    </div>
+    <div class="chart-section" id="co2-chart-section">
+      <div class="chart-title" id="title-co2">CO₂ — last 24 hours</div>
+      <div class="chart-wrap"><canvas id="co2-chart"></canvas></div>
+    </div>
+    <div class="chart-section" id="pm-chart-section">
+      <div class="chart-title" id="title-pm25">PM2.5 — last 24 hours</div>
+      <div class="chart-wrap"><canvas id="pm25-chart"></canvas></div>
+    </div>
+    <div class="chart-section" id="aqi-chart-section">
+      <div class="chart-title" id="title-aqi">AQI — last 6 hours</div>
+      <div class="chart-wrap"><canvas id="aqi-chart"></canvas></div>
+    </div>
+    <div class="chart-section" id="tvoc-chart-section">
+      <div class="chart-title" id="title-tvoc">TVOC — last 6 hours</div>
+      <div class="chart-wrap"><canvas id="tvoc-chart"></canvas></div>
+    </div>
+    <div class="chart-section hidden" id="eco2-chart-section">
+      <div class="chart-title" id="title-eco2">eCO₂ (est.) — last 6 hours</div>
+      <div class="chart-wrap"><canvas id="eco2-chart"></canvas></div>
+    </div>
   </div>
 </div>
 
@@ -379,17 +381,17 @@
   const ECO2_NODES    = {{ eco2_nodes | tojson }};
 
   const AQI_THRESHOLDS = [
-    { max: 1,        label: 'GOOD',      color: '#22c55e' },
-    { max: 2,        label: 'OK',        color: '#eab308' },
-    { max: 3,        label: 'POOR',      color: '#f97316' },
-    { max: 4,        label: 'UNHEALTHY', color: '#ef4444' },
-    { max: Infinity, label: 'HAZARDOUS', color: '#7f1d1d' },
+    { max: 1,        label: 'EXCELLENT', color: '#22c55e' },
+    { max: 2,        label: 'GOOD',      color: '#84cc16' },
+    { max: 3,        label: 'MODERATE',  color: '#eab308' },
+    { max: 4,        label: 'POOR',      color: '#f97316' },
+    { max: Infinity, label: 'UNHEALTHY', color: '#ef4444' },
   ];
   const TVOC_THRESHOLDS = [
-    { max: 150,      label: 'GOOD',      color: '#22c55e' },
-    { max: 250,      label: 'OK',        color: '#eab308' },
-    { max: 500,      label: 'POOR',      color: '#f97316' },
-    { max: Infinity, label: 'UNHEALTHY', color: '#ef4444' },
+    { max: 150,      label: 'EXCELLENT', color: '#22c55e' },
+    { max: 250,      label: 'GOOD',      color: '#84cc16' },
+    { max: 500,      label: 'MODERATE',  color: '#eab308' },
+    { max: Infinity, label: 'POOR',      color: '#f97316' },
   ];
   const PM25_THRESHOLDS = [
     { max: 12,       label: 'GOOD',      color: '#22c55e' },
@@ -472,6 +474,15 @@
       document.getElementById('aqi-chart-section').classList.toggle('hidden', !sensors.aqi);
       document.getElementById('tvoc-chart-section').classList.toggle('hidden', !sensors.tvoc);
       document.getElementById('detail-title').textContent = NODE_LABELS[currentRoom] || currentRoom;
+
+      // Kitchen: eCO₂ is the primary CO₂ signal, so promote its chart to the top
+      const chartsContainer = document.getElementById('charts-container');
+      const eco2Section = document.getElementById('eco2-chart-section');
+      if (currentRoom === 'kitchen') {
+        chartsContainer.insertBefore(eco2Section, chartsContainer.firstChild);
+      } else {
+        chartsContainer.appendChild(eco2Section);
+      }
     }
   }
 
