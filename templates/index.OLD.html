@@ -1,0 +1,842 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>bancroft-air</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: #f0f2f5;
+      color: #1a1a2e;
+      padding: 16px;
+      max-width: 960px;
+      margin: 0 auto;
+    }
+
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      margin-bottom: 16px;
+      flex-wrap: wrap;
+      gap: 4px;
+    }
+    header h1 { font-size: 1.4rem; font-weight: 700; letter-spacing: -0.5px; }
+    #last-updated { font-size: 0.8rem; color: #666; }
+
+    /* ── Room tabs ── */
+    .tab-bar {
+      display: flex;
+      gap: 4px;
+      flex-wrap: wrap;
+      margin-bottom: 18px;
+    }
+    .tab-btn {
+      padding: 6px 14px;
+      border-radius: 20px;
+      border: 1px solid #ddd;
+      background: #fff;
+      font-size: 0.78rem;
+      font-weight: 600;
+      color: #555;
+      cursor: pointer;
+      letter-spacing: 0.02em;
+      transition: background 0.15s, color 0.15s, border-color 0.15s;
+    }
+    .tab-btn:hover { border-color: #aaa; color: #222; }
+    .tab-btn.active {
+      background: #1a1a2e;
+      color: #fff;
+      border-color: #1a1a2e;
+    }
+
+    /* ── Overview grid ── */
+    .overview-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+    .node-card {
+      background: #fff;
+      border-radius: 12px;
+      padding: 14px 14px 12px;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+      cursor: pointer;
+      border: 2px solid transparent;
+      transition: border-color 0.15s;
+    }
+    .node-card:hover { border-color: #c7c9d3; }
+    .node-card.active { border-color: #1a1a2e; }
+
+    .node-card-title {
+      font-size: 0.72rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: #888;
+      margin-bottom: 8px;
+    }
+    .node-co2 {
+      font-size: 2rem;
+      font-weight: 700;
+      line-height: 1;
+      margin-bottom: 2px;
+    }
+    .node-co2-unit { font-size: 0.72rem; color: #888; }
+    .node-badge {
+      display: inline-block;
+      margin-top: 5px;
+      padding: 2px 8px;
+      border-radius: 20px;
+      font-size: 0.68rem;
+      font-weight: 700;
+      color: #fff;
+      background: #aaa;
+    }
+    .node-meta {
+      margin-top: 8px;
+      font-size: 0.75rem;
+      color: #666;
+      display: flex;
+      gap: 10px;
+    }
+    .node-meta span { white-space: nowrap; }
+    .node-offline { opacity: 0.45; }
+    .node-stale .node-co2 { color: #999; }
+
+    /* ── Detail view ── */
+    #detail-view { display: none; }
+    #detail-view.visible { display: block; }
+
+    .detail-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      margin-bottom: 14px;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+    .detail-title {
+      font-size: 1.1rem;
+      font-weight: 700;
+    }
+
+    .cards {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+    .card {
+      background: #fff;
+      border-radius: 12px;
+      padding: 14px 12px 10px;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+    }
+    .card-label {
+      font-size: 0.68rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: #888;
+      margin-bottom: 6px;
+    }
+    .card-value {
+      font-size: 1.9rem;
+      font-weight: 700;
+      line-height: 1;
+    }
+    .card-unit {
+      font-size: 0.72rem;
+      color: #888;
+      margin-top: 4px;
+    }
+    .card-badge {
+      display: inline-block;
+      margin-top: 6px;
+      padding: 2px 8px;
+      border-radius: 20px;
+      font-size: 0.68rem;
+      font-weight: 700;
+      color: #fff;
+      background: #aaa;
+    }
+    .card.dim { opacity: 0.4; }
+    .card.hidden { display: none; }
+
+    /* ── Charts ── */
+    .range-bar {
+      display: flex;
+      gap: 4px;
+      margin-bottom: 14px;
+      flex-wrap: wrap;
+    }
+    .range-btn {
+      padding: 4px 10px;
+      border-radius: 20px;
+      border: 1px solid #ddd;
+      background: #fff;
+      font-size: 0.72rem;
+      font-weight: 600;
+      color: #555;
+      cursor: pointer;
+      letter-spacing: 0.03em;
+      transition: background 0.15s, color 0.15s, border-color 0.15s;
+    }
+    .range-btn:hover { border-color: #aaa; color: #222; }
+    .range-btn.active {
+      background: #1a1a2e;
+      color: #fff;
+      border-color: #1a1a2e;
+    }
+
+    .chart-section {
+      background: #fff;
+      border-radius: 12px;
+      padding: 16px;
+      margin-bottom: 14px;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+    }
+    .chart-title {
+      font-size: 0.78rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: #888;
+      margin-bottom: 10px;
+    }
+    .chart-wrap { position: relative; height: 150px; }
+    .chart-section.hidden { display: none; }
+
+    @media (max-width: 480px) {
+      .card-value  { font-size: 1.5rem; }
+      .node-co2    { font-size: 1.7rem; }
+      .range-btn   { padding: 3px 7px; font-size: 0.68rem; }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>bancroft-air</h1>
+  <span id="last-updated">—</span>
+</header>
+
+<!-- Room tabs -->
+<div class="tab-bar" id="tab-bar">
+  <button class="tab-btn active" data-tab="overview">Overview</button>
+  {% for node in nodes %}
+  <button class="tab-btn" data-tab="{{ node }}">{{ node_labels[node] }}</button>
+  {% endfor %}
+</div>
+
+<!-- Overview: per-node summary cards -->
+<div id="overview-view">
+  <div class="overview-grid" id="overview-grid">
+    {% for node in nodes %}
+    <div class="node-card" id="nodecard-{{ node }}" data-node="{{ node }}"
+         onclick="switchToRoom('{{ node }}')">
+      <div class="node-card-title">{{ node_labels[node] }}</div>
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;">
+        <div>
+          <div class="node-co2" id="ov-co2-{{ node }}"{% if not node_sensors[node]['co2'] %} style="display:none"{% endif %}>—</div>
+          <div class="node-co2-unit"{% if not node_sensors[node]['co2'] %} style="display:none"{% endif %}>ppm CO₂</div>
+          <div class="node-co2" id="ov-pm25-{{ node }}"{% if not node_sensors[node]['eco2'] %} style="display:none"{% endif %}>—</div>
+          <div class="node-co2-unit"{% if not node_sensors[node]['eco2'] %} style="display:none"{% endif %}>µg/m³ PM2.5</div>
+          <div class="node-badge" id="ov-badge-{{ node }}" style="margin-top:5px;">—</div>
+        </div>
+        <div style="text-align:right;{% if not node_sensors[node]['aqi'] %}display:none;{% endif %}">
+          <div class="node-co2" id="ov-aqi-{{ node }}">—</div>
+          <div class="node-co2-unit">AQI</div>
+          <div class="node-badge" id="ov-aqi-badge-{{ node }}" style="margin-top:5px;">—</div>
+        </div>
+      </div>
+      <div style="position:relative;height:40px;margin-top:8px;">
+        <canvas id="ov-spark-{{ node }}"></canvas>
+      </div>
+      <div class="node-meta">
+        <span id="ov-temp-{{ node }}">—</span>
+        <span id="ov-hum-{{ node }}">—</span>
+      </div>
+      <div style="font-size:0.68rem;color:#aaa;margin-top:4px;" id="ov-ts-{{ node }}"></div>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+
+<!-- Detail: selected room's cards + charts -->
+<div id="detail-view">
+  <div class="detail-header">
+    <span class="detail-title" id="detail-title">Office</span>
+  </div>
+
+  <div class="cards" id="detail-cards">
+    <div class="card" id="detail-card-co2">
+      <div class="card-label">CO₂</div>
+      <div class="card-value" id="d-co2">—</div>
+      <div class="card-unit">ppm</div>
+      <div class="card-badge" id="d-co2-badge">—</div>
+    </div>
+    <div class="card hidden" id="detail-card-eco2">
+      <div class="card-label">eCO₂ (est.)</div>
+      <div class="card-value" id="d-eco2">—</div>
+      <div class="card-unit">ppm</div>
+    </div>
+    <div class="card" id="detail-card-pm25">
+      <div class="card-label">PM2.5</div>
+      <div class="card-value" id="d-pm25">—</div>
+      <div class="card-unit">µg/m³</div>
+    </div>
+    <div class="card" id="detail-card-pm10">
+      <div class="card-label">PM10</div>
+      <div class="card-value" id="d-pm10">—</div>
+      <div class="card-unit">µg/m³</div>
+    </div>
+    <div class="card">
+      <div class="card-label">Temperature</div>
+      <div class="card-value" id="d-temp">—</div>
+      <div class="card-unit">°F</div>
+    </div>
+    <div class="card">
+      <div class="card-label">Humidity</div>
+      <div class="card-value" id="d-hum">—</div>
+      <div class="card-unit">%RH</div>
+    </div>
+    <div class="card" id="detail-card-aqi">
+      <div class="card-label">AQI</div>
+      <div class="card-value" id="d-aqi">—</div>
+      <div class="card-badge" id="d-aqi-badge">—</div>
+    </div>
+    <div class="card" id="detail-card-tvoc">
+      <div class="card-label">TVOC</div>
+      <div class="card-value" id="d-tvoc">—</div>
+      <div class="card-unit">ppb</div>
+      <div class="card-badge" id="d-tvoc-badge">—</div>
+    </div>
+  </div>
+
+  <div class="range-bar">
+    <button class="range-btn active" data-range="6h">6H</button>
+    <button class="range-btn" data-range="1d">1D</button>
+    <button class="range-btn" data-range="1w">1W</button>
+    <button class="range-btn" data-range="1m">1M</button>
+    <button class="range-btn" data-range="3m">3M</button>
+    <button class="range-btn" data-range="6m">6M</button>
+    <button class="range-btn" data-range="1y">1Y</button>
+    <button class="range-btn" data-range="all">ALL</button>
+    <button class="range-btn active" id="smooth-toggle" style="margin-left:auto;">Trend</button>
+  </div>
+
+  <div id="charts-container">
+    <div class="chart-section">
+      <div class="chart-title" id="title-temp">Temperature — last 24 hours</div>
+      <div class="chart-wrap"><canvas id="temp-chart"></canvas></div>
+    </div>
+    <div class="chart-section">
+      <div class="chart-title" id="title-hum">Humidity — last 24 hours</div>
+      <div class="chart-wrap"><canvas id="hum-chart"></canvas></div>
+    </div>
+    <div class="chart-section" id="co2-chart-section">
+      <div class="chart-title" id="title-co2">CO₂ — last 24 hours</div>
+      <div class="chart-wrap"><canvas id="co2-chart"></canvas></div>
+    </div>
+    <div class="chart-section" id="pm-chart-section">
+      <div class="chart-title" id="title-pm25">PM2.5 — last 24 hours</div>
+      <div class="chart-wrap"><canvas id="pm25-chart"></canvas></div>
+    </div>
+    <div class="chart-section" id="aqi-chart-section">
+      <div class="chart-title" id="title-aqi">AQI — last 6 hours</div>
+      <div class="chart-wrap"><canvas id="aqi-chart"></canvas></div>
+    </div>
+    <div class="chart-section" id="tvoc-chart-section">
+      <div class="chart-title" id="title-tvoc">TVOC — last 6 hours</div>
+      <div class="chart-wrap"><canvas id="tvoc-chart"></canvas></div>
+    </div>
+    <div class="chart-section hidden" id="eco2-chart-section">
+      <div class="chart-title" id="title-eco2">eCO₂ (est.) — last 6 hours</div>
+      <div class="chart-wrap"><canvas id="eco2-chart"></canvas></div>
+    </div>
+  </div>
+</div>
+
+<script>
+  // ── Constants ──────────────────────────────────────────────────────────────
+  const CO2_THRESHOLDS = [
+    { max: 800,      label: 'GOOD', color: '#22c55e' },
+    { max: 1000,     label: 'OK',   color: '#eab308' },
+    { max: 1500,     label: 'POOR', color: '#f97316' },
+    { max: Infinity, label: 'BAD!', color: '#ef4444' },
+  ];
+
+  const NODE_LABELS   = {{ node_labels | tojson }};
+  const NODES         = {{ nodes | tojson }};
+  const NODE_SENSORS  = {{ node_sensors | tojson }};
+  const ENS160_NODES  = {{ ens160_nodes | tojson }};
+  const PM_NODES      = {{ pm_nodes | tojson }};
+  const ECO2_NODES    = {{ eco2_nodes | tojson }};
+
+  const AQI_THRESHOLDS = [
+    { max: 1,        label: 'EXCELLENT', color: '#22c55e' },
+    { max: 2,        label: 'GOOD',      color: '#84cc16' },
+    { max: 3,        label: 'MODERATE',  color: '#eab308' },
+    { max: 4,        label: 'POOR',      color: '#f97316' },
+    { max: Infinity, label: 'UNHEALTHY', color: '#ef4444' },
+  ];
+  const TVOC_THRESHOLDS = [
+    { max: 150,      label: 'EXCELLENT', color: '#22c55e' },
+    { max: 250,      label: 'GOOD',      color: '#84cc16' },
+    { max: 500,      label: 'MODERATE',  color: '#eab308' },
+    { max: Infinity, label: 'POOR',      color: '#f97316' },
+  ];
+  const PM25_THRESHOLDS = [
+    { max: 12,       label: 'GOOD',      color: '#22c55e' },
+    { max: 35,       label: 'OK',        color: '#eab308' },
+    { max: 55,       label: 'POOR',      color: '#f97316' },
+    { max: Infinity, label: 'UNHEALTHY', color: '#ef4444' },
+  ];
+
+  // Stale threshold: > 5 minutes since last reading
+  const STALE_MS = 5 * 60 * 1000;
+
+  // ── Helpers ────────────────────────────────────────────────────────────────
+  function co2Status(ppm) {
+    return CO2_THRESHOLDS.find(t => ppm < t.max) || CO2_THRESHOLDS.at(-1);
+  }
+  function aqiStatus(val) {
+    return AQI_THRESHOLDS.find(t => val <= t.max) || AQI_THRESHOLDS.at(-1);
+  }
+  function tvocStatus(ppb) {
+    return TVOC_THRESHOLDS.find(t => ppb < t.max) || TVOC_THRESHOLDS.at(-1);
+  }
+  function pm25Status(val) {
+    return PM25_THRESHOLDS.find(t => val < t.max) || PM25_THRESHOLDS.at(-1);
+  }
+
+  function fmt(val, digits = 0) {
+    return val != null ? Number(val).toFixed(digits) : '—';
+  }
+
+  function toF(c) { return c != null ? c * 9/5 + 32 : null; }
+
+  function relativeTime(isoStr) {
+    if (!isoStr) return '';
+    const diff = Date.now() - new Date(isoStr).getTime();
+    if (diff < 0 || isNaN(diff)) return '';
+    if (diff < 60000)  return `${Math.round(diff/1000)}s ago`;
+    if (diff < 3600000) return `${Math.round(diff/60000)}m ago`;
+    return new Date(isoStr).toLocaleTimeString([], { hour:'2-digit', minute:'2-digit' });
+  }
+
+  // ── Tab / view state ───────────────────────────────────────────────────────
+  let currentTab  = 'overview';
+  let currentRoom = 'office';
+  let currentRange = '6h';
+  let smoothMode  = true;
+  let charts = {};
+  let chartRefreshTimer = null;
+
+  function switchToRoom(node) {
+    currentRoom = node;
+    setTab(node);
+  }
+
+  function setTab(tab) {
+    currentTab = tab;
+
+    document.querySelectorAll('.tab-btn').forEach(b =>
+      b.classList.toggle('active', b.dataset.tab === tab));
+
+    const isOverview = (tab === 'overview');
+    document.getElementById('overview-view').style.display = isOverview ? '' : 'none';
+    const detail = document.getElementById('detail-view');
+    if (isOverview) {
+      detail.classList.remove('visible');
+    } else {
+      detail.classList.add('visible');
+      currentRoom = tab;
+      updateDetailCurrent();
+      setRange(currentRange, /*force=*/true);
+      const sensors = NODE_SENSORS[currentRoom] || {};
+      document.getElementById('detail-card-pm25').classList.toggle('hidden', !sensors.pm);
+      document.getElementById('detail-card-pm10').classList.toggle('hidden', !sensors.pm);
+      document.getElementById('pm-chart-section').classList.toggle('hidden', !sensors.pm);
+      document.getElementById('detail-card-co2').classList.toggle('hidden', !sensors.co2);
+      document.getElementById('co2-chart-section').classList.toggle('hidden', !sensors.co2);
+      document.getElementById('detail-card-eco2').classList.toggle('hidden', !sensors.eco2);
+      document.getElementById('eco2-chart-section').classList.toggle('hidden', !sensors.eco2);
+      document.getElementById('detail-card-aqi').classList.toggle('hidden', !sensors.aqi);
+      document.getElementById('detail-card-tvoc').classList.toggle('hidden', !sensors.tvoc);
+      document.getElementById('aqi-chart-section').classList.toggle('hidden', !sensors.aqi);
+      document.getElementById('tvoc-chart-section').classList.toggle('hidden', !sensors.tvoc);
+      document.getElementById('detail-title').textContent = NODE_LABELS[currentRoom] || currentRoom;
+
+      // Kitchen: eCO₂ is the primary CO₂ signal, so promote its chart to the top
+      const chartsContainer = document.getElementById('charts-container');
+      const eco2Section = document.getElementById('eco2-chart-section');
+      if (currentRoom === 'kitchen') {
+        chartsContainer.insertBefore(eco2Section, chartsContainer.firstChild);
+      } else {
+        chartsContainer.appendChild(eco2Section);
+      }
+    }
+  }
+
+  // ── Overview ───────────────────────────────────────────────────────────────
+  function updateOverview(allData) {
+    let latestTs = null;
+
+    NODES.forEach(node => {
+      const data = allData[node];
+      const card = document.getElementById(`nodecard-${node}`);
+      if (!data) {
+        const co2El = document.getElementById(`ov-co2-${node}`);
+        if (co2El) co2El.textContent = '—';
+        const pm25El = document.getElementById(`ov-pm25-${node}`);
+        if (pm25El) pm25El.textContent = '—';
+        document.getElementById(`ov-badge-${node}`).textContent = '—';
+        document.getElementById(`ov-badge-${node}`).style.background = '#aaa';
+        document.getElementById(`ov-temp-${node}`).textContent = '—';
+        document.getElementById(`ov-hum-${node}`).textContent = '—';
+        document.getElementById(`ov-ts-${node}`).textContent = '';
+        const aqiEl = document.getElementById(`ov-aqi-${node}`);
+        if (aqiEl) aqiEl.textContent = '—';
+        if (card) card.classList.add('node-offline');
+        return;
+      }
+
+      const tsMs = new Date(data.timestamp).getTime();
+      const stale = (Date.now() - tsMs) > STALE_MS;
+
+      if (card) {
+        card.classList.remove('node-offline', 'node-stale');
+        card.classList.toggle('active', node === currentRoom && currentTab !== 'overview');
+        if (stale) card.classList.add('node-stale');
+      }
+
+      const badge = document.getElementById(`ov-badge-${node}`);
+      if (ECO2_NODES.includes(node)) {
+        // Kitchen: PM2.5 as primary metric, AQI badge
+        const pm25El = document.getElementById(`ov-pm25-${node}`);
+        if (pm25El) pm25El.textContent = data.pm25 != null ? fmt(data.pm25, 1) : '—';
+        if (data.aqi != null) {
+          const s = aqiStatus(data.aqi);
+          badge.textContent = s.label;
+          badge.style.background = stale ? '#aaa' : s.color;
+        } else {
+          badge.textContent = '—';
+          badge.style.background = '#aaa';
+        }
+      } else {
+        // Standard: CO2 as primary metric
+        const co2El = document.getElementById(`ov-co2-${node}`);
+        if (co2El) co2El.textContent = fmt(data.co2_ppm);
+        const status = co2Status(data.co2_ppm);
+        badge.textContent = status.label;
+        badge.style.background = stale ? '#aaa' : status.color;
+      }
+
+      const aqiValEl  = document.getElementById(`ov-aqi-${node}`);
+      const aqiBadge  = document.getElementById(`ov-aqi-badge-${node}`);
+      if (ENS160_NODES.includes(node)) {
+        if (data.aqi != null) {
+          const aqiS = aqiStatus(data.aqi);
+          if (aqiValEl) aqiValEl.textContent = fmt(data.aqi);
+          if (aqiBadge) {
+            aqiBadge.textContent      = aqiS.label;
+            aqiBadge.style.background = stale ? '#aaa' : aqiS.color;
+          }
+        } else {
+          if (aqiValEl) aqiValEl.textContent = '—';
+          if (aqiBadge) aqiBadge.textContent = '—';
+        }
+      }
+
+      document.getElementById(`ov-temp-${node}`).textContent =
+        data.temp_c != null ? `${fmt(toF(data.temp_c), 1)}°F` : '—';
+      document.getElementById(`ov-hum-${node}`).textContent =
+        data.humidity_pct != null ? `${fmt(data.humidity_pct, 1)}%` : '—';
+      document.getElementById(`ov-ts-${node}`).textContent = relativeTime(data.timestamp);
+
+      if (!latestTs || tsMs > new Date(latestTs).getTime()) latestTs = data.timestamp;
+    });
+
+    if (latestTs) {
+      document.getElementById('last-updated').textContent =
+        `updated ${new Date(latestTs).toLocaleTimeString()}`;
+    }
+  }
+
+  // ── Detail current cards ───────────────────────────────────────────────────
+  let _lastAllData = {};
+
+  function updateDetailCurrent() {
+    const data = _lastAllData[currentRoom];
+    if (!data) return;
+
+    document.getElementById('d-co2').textContent  = fmt(data.co2_ppm);
+    document.getElementById('d-eco2').textContent = fmt(data.eco2);
+    document.getElementById('d-pm25').textContent = fmt(data.pm25, 1);
+    document.getElementById('d-pm10').textContent  = fmt(data.pm10, 1);
+    document.getElementById('d-temp').textContent  = fmt(toF(data.temp_c), 1);
+    document.getElementById('d-hum').textContent   = fmt(data.humidity_pct, 1);
+
+    if (data.co2_ppm != null) {
+      const status = co2Status(data.co2_ppm);
+      const badge  = document.getElementById('d-co2-badge');
+      badge.textContent      = status.label;
+      badge.style.background = status.color;
+    }
+
+    document.getElementById('d-aqi').textContent  = fmt(data.aqi);
+    document.getElementById('d-tvoc').textContent = fmt(data.tvoc);
+    if (data.aqi != null) {
+      const s = aqiStatus(data.aqi);
+      const b = document.getElementById('d-aqi-badge');
+      b.textContent = s.label; b.style.background = s.color;
+    }
+    if (data.tvoc != null) {
+      const s = tvocStatus(data.tvoc);
+      const b = document.getElementById('d-tvoc-badge');
+      b.textContent = s.label; b.style.background = s.color;
+    }
+  }
+
+  // ── Fetch /api/now ─────────────────────────────────────────────────────────
+  async function refreshCurrent() {
+    try {
+      const allData = await fetch('/api/now').then(r => r.json());
+      _lastAllData = allData;
+      updateOverview(allData);
+      if (currentTab !== 'overview') updateDetailCurrent();
+    } catch (e) {
+      console.warn('refreshCurrent error:', e);
+    }
+  }
+
+  // ── Charts ─────────────────────────────────────────────────────────────────
+  const CHART_DEFAULTS = {
+    type: 'line',
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      animation: false,
+      plugins: { legend: { display: false } },
+      elements: { point: { radius: 0 } },
+      scales: {
+        x: {
+          ticks: { maxTicksLimit: 6, maxRotation: 0, font: { size: 10 } },
+          grid: { color: 'rgba(0,0,0,0.05)' },
+        },
+        y: {
+          beginAtZero: false,
+          ticks: { font: { size: 10 } },
+          grid: { color: 'rgba(0,0,0,0.05)' },
+        },
+      },
+    },
+  };
+
+  const RANGE_LABELS = {
+    '6h': 'last 6 hours', '1d': 'last 24 hours', '1w': 'last 7 days', '1m': 'last 30 days',
+    '3m': 'last 3 months', '6m': 'last 6 months', '1y': 'last year', 'all': 'all time',
+  };
+
+  function formatLabel(ts, range) {
+    const dt = new Date(ts);
+    if (range === '6h' || range === '1d') return dt.toLocaleTimeString([], { hour:'2-digit', minute:'2-digit' });
+    if (range === '1w') return dt.toLocaleDateString([], { weekday:'short' }) + ' ' +
+                               dt.toLocaleTimeString([], { hour:'2-digit', minute:'2-digit' });
+    if (['1m','3m','6m'].includes(range)) return dt.toLocaleDateString([], { month:'short', day:'numeric' });
+    return dt.toLocaleDateString([], { month:'short', year:'numeric' });
+  }
+
+  function makeDataset(label, values, color) {
+    return {
+      label,
+      data: values,
+      borderColor: color,
+      backgroundColor: color.replace(')', ', 0.1)').replace('rgb', 'rgba'),
+      borderWidth: 1.5,
+      tension: 0.3,
+      fill: true,
+    };
+  }
+
+  function updateChartTitles(range) {
+    const suffix = RANGE_LABELS[range] || range;
+    document.getElementById('title-temp').textContent = `Temperature — ${suffix}`;
+    document.getElementById('title-hum').textContent  = `Humidity — ${suffix}`;
+    document.getElementById('title-co2').textContent  = `CO₂ — ${suffix}`;
+    document.getElementById('title-pm25').textContent = `PM2.5 — ${suffix}`;
+    document.getElementById('title-aqi').textContent  = `AQI — ${suffix}`;
+    document.getElementById('title-tvoc').textContent = `TVOC — ${suffix}`;
+    document.getElementById('title-eco2').textContent = `eCO₂ (est.) — ${suffix}`;
+  }
+
+  async function loadCharts(range) {
+    range = range || currentRange;
+    try {
+      const url = `/api/history?range=${range}&node=${currentRoom}${smoothMode ? '&smooth=1' : ''}`;
+      const data = await fetch(url).then(r => r.json());
+      if (!Array.isArray(data) || !data.length) return;
+
+      const labels = data.map(d => formatLabel(d.timestamp, range));
+
+      if (charts.co2)  charts.co2.destroy();
+      charts.co2 = new Chart(document.getElementById('co2-chart'), {
+        ...CHART_DEFAULTS,
+        data: { labels, datasets: [makeDataset('CO₂ ppm', data.map(d => d.co2_ppm), 'rgb(239,68,68)')] },
+      });
+
+      if (charts.pm25) charts.pm25.destroy();
+      charts.pm25 = new Chart(document.getElementById('pm25-chart'), {
+        ...CHART_DEFAULTS,
+        data: { labels, datasets: [makeDataset('PM2.5 µg/m³', data.map(d => d.pm25), 'rgb(168,85,247)')] },
+      });
+
+      if (charts.temp) charts.temp.destroy();
+      charts.temp = new Chart(document.getElementById('temp-chart'), {
+        ...CHART_DEFAULTS,
+        data: { labels, datasets: [makeDataset('Temp °F', data.map(d => toF(d.temp_c)), 'rgb(34,197,94)')] },
+      });
+
+      if (charts.hum) charts.hum.destroy();
+      charts.hum = new Chart(document.getElementById('hum-chart'), {
+        ...CHART_DEFAULTS,
+        data: { labels, datasets: [makeDataset('Humidity %RH', data.map(d => d.humidity_pct), 'rgb(56,189,248)')] },
+      });
+
+      if (ENS160_NODES.includes(currentRoom)) {
+        if (charts.aqi) charts.aqi.destroy();
+        charts.aqi = new Chart(document.getElementById('aqi-chart'), {
+          ...CHART_DEFAULTS,
+          data: { labels, datasets: [makeDataset('AQI', data.map(d => d.aqi), 'rgb(99,102,241)')] },
+        });
+        if (charts.tvoc) charts.tvoc.destroy();
+        charts.tvoc = new Chart(document.getElementById('tvoc-chart'), {
+          ...CHART_DEFAULTS,
+          data: { labels, datasets: [makeDataset('TVOC ppb', data.map(d => d.tvoc), 'rgb(20,184,166)')] },
+        });
+      }
+      if (ECO2_NODES.includes(currentRoom)) {
+        if (charts.eco2) charts.eco2.destroy();
+        charts.eco2 = new Chart(document.getElementById('eco2-chart'), {
+          ...CHART_DEFAULTS,
+          data: { labels, datasets: [makeDataset('eCO₂ ppm', data.map(d => d.eco2), 'rgb(251,146,60)')] },
+        });
+      }
+    } catch (e) {
+      console.warn('loadCharts error:', e);
+    }
+  }
+
+  function setRange(range, force = false) {
+    if (!force && range === currentRange) return;
+    currentRange = range;
+    document.querySelectorAll('.range-btn').forEach(btn =>
+      btn.classList.toggle('active', btn.dataset.range === range));
+    updateChartTitles(range);
+    loadCharts(range);
+    if (chartRefreshTimer) clearInterval(chartRefreshTimer);
+    chartRefreshTimer = setInterval(() => loadCharts(currentRange), 60000);
+  }
+
+  // ── Sparklines ────────────────────────────────────────────────────────────
+  const sparkCharts = {};
+
+  async function loadSparklines() {
+    let rows;
+    try {
+      rows = await fetch('/api/history?range=2h').then(r => r.json());
+    } catch (e) {
+      console.warn('loadSparklines error:', e);
+      return;
+    }
+
+    // Group by node
+    const byNode = {};
+    rows.forEach(r => {
+      if (!byNode[r.node]) byNode[r.node] = [];
+      byNode[r.node].push(r);
+    });
+
+    NODES.forEach(node => {
+      const nodeRows = byNode[node] || [];
+      const labels = nodeRows.map(r => r.timestamp);
+      const isEco2Node = ECO2_NODES.includes(node);
+      const values = nodeRows.map(r => isEco2Node ? r.pm25 : r.co2_ppm);
+
+      // Pick line color from the latest primary metric value
+      const lastVal = values.filter(v => v != null).at(-1);
+      const lineColor = lastVal != null
+        ? (isEco2Node ? pm25Status(lastVal).color : co2Status(lastVal).color)
+        : '#aaa';
+
+      const canvas = document.getElementById(`ov-spark-${node}`);
+      if (!canvas) return;
+
+      if (sparkCharts[node]) {
+        sparkCharts[node].data.labels = labels;
+        sparkCharts[node].data.datasets[0].data = values;
+        sparkCharts[node].data.datasets[0].borderColor = lineColor;
+        sparkCharts[node].update('none');
+      } else {
+        sparkCharts[node] = new Chart(canvas, {
+          type: 'line',
+          data: {
+            labels,
+            datasets: [{
+              data: values,
+              borderColor: lineColor,
+              borderWidth: 1.5,
+              tension: 0.3,
+              pointRadius: 0,
+              fill: false,
+            }],
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            animation: false,
+            plugins: { legend: { display: false }, tooltip: { enabled: false } },
+            scales: {
+              x: { display: false },
+              y: { display: false, beginAtZero: false },
+            },
+          },
+        });
+      }
+    });
+  }
+
+  // ── Wire up controls ───────────────────────────────────────────────────────
+  document.querySelectorAll('.tab-btn').forEach(btn => {
+    btn.addEventListener('click', () => setTab(btn.dataset.tab));
+  });
+
+  document.querySelectorAll('.range-btn').forEach(btn => {
+    if (btn.id === 'smooth-toggle') return;
+    btn.addEventListener('click', () => setRange(btn.dataset.range));
+  });
+
+  document.getElementById('smooth-toggle').addEventListener('click', () => {
+    smoothMode = !smoothMode;
+    const btn = document.getElementById('smooth-toggle');
+    btn.textContent = smoothMode ? 'Trend' : 'Detail';
+    btn.classList.toggle('active', smoothMode);
+    loadCharts(currentRange);
+  });
+
+  // ── Boot ───────────────────────────────────────────────────────────────────
+  refreshCurrent();
+  setInterval(refreshCurrent, 10000);
+  loadSparklines();
+  setInterval(loadSparklines, 60000);
+</script>
+</body>
+</html>

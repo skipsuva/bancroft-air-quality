@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500;600&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; }
+    @keyframes flow { to { stroke-dashoffset: -14; } }
+    @keyframes livepulse { 0%,100% { opacity: 1; } 50% { opacity: .35; } }
+  </style>
+</helmet>
+<div style="min-height:100vh; background:#e9eaee; font-family:'Nunito',sans-serif; padding:38px 24px 70px; color:#3a322a;">
+  <div style="max-width:520px; margin:0 auto;">
+    <div style="display:flex; align-items:baseline; gap:12px; margin-bottom:4px;">
+      <h1 style="font-size:22px; font-weight:800; margin:0; letter-spacing:-.02em;">Bancroft Air — Option 3, refined</h1>
+    </div>
+    <p style="margin:0 0 28px; color:#6b6f7d; font-size:14px; line-height:1.5;">Soft direction with your feedback applied: a system-status line, per-node freshness, mesh lines that signal <strong style="color:#3a322a;">connectivity</strong> (green = live, red = offline), a Map / List toggle, and tighter, icon-free action rows.</p>
+
+    <div style="width:390px; margin:0 auto; background:#000; border-radius:48px; padding:11px; box-shadow:0 34px 70px -24px rgba(20,22,34,.5);">
+      <div style="background:#fbf7f2; border-radius:38px; overflow:hidden; position:relative; height:812px; display:flex; flex-direction:column; font-family:'Nunito',sans-serif;">
+
+        <!-- status bar -->
+        <div style="display:flex; justify-content:space-between; align-items:center; padding:14px 28px 4px; font-size:13px; font-weight:700; color:#4a4036;">
+          <span>9:41</span>
+          <span style="display:flex; gap:5px; align-items:center;"><span style="width:7px;height:7px;border-radius:50%;background:#34c759; animation:livepulse 2.4s ease-in-out infinite;"></span><span style="font-size:11px; color:#a99a88; font-weight:700;">live</span></span>
+        </div>
+
+        <div style="flex:1; overflow:hidden; padding:6px 16px 16px; display:flex; flex-direction:column;">
+
+          <!-- header + system status -->
+          <div style="display:flex; align-items:center; justify-content:space-between; margin:2px 2px 12px;">
+            <div>
+              <div style="font-size:22px; font-weight:800; letter-spacing:-.02em; color:#3a322a;">Bancroft Air</div>
+              <div style="display:flex; align-items:center; gap:7px; margin-top:3px; white-space:nowrap;">
+                <span style="display:inline-flex; align-items:center; gap:4px; font-size:11.5px; font-weight:700; color:#5a8a6c;"><span style="width:6px;height:6px;border-radius:50%;background:#34a853;"></span>{{ status.online }}/{{ status.total }} online</span>
+                <span style="color:#d8cfc2;">·</span>
+                <span style="font-size:11.5px; font-weight:600; color:#a99a88;">{{ status.updated }}</span>
+              </div>
+            </div>
+            <div style="text-align:right;">
+              <div style="font-size:20px; font-weight:800; color:#c63b30; line-height:1;">{{ status.attention }}</div>
+              <div style="font-size:9.5px; color:#a99a88; font-weight:700; letter-spacing:.04em; text-transform:uppercase; margin-top:2px;">to fix</div>
+            </div>
+          </div>
+
+          <!-- hero -->
+          <div style="background:linear-gradient(135deg,#ff8a5c,#ef5e4e); border-radius:22px; padding:15px 17px; margin-bottom:13px; box-shadow:0 14px 24px -13px rgba(239,94,78,.6); position:relative; overflow:hidden;">
+            <div style="position:absolute; right:-20px; top:-20px; width:84px; height:84px; border-radius:50%; background:rgba(255,255,255,.12);"></div>
+            <div style="display:flex; align-items:center; gap:13px; position:relative;">
+              <div style="width:46px; height:46px; border-radius:50%; background:rgba(255,255,255,.24); display:flex; align-items:center; justify-content:center; flex-shrink:0; color:#fff;">{{ heroIcon }}</div>
+              <div style="color:#fff; line-height:1.18;">
+                <div style="font-size:16.5px; font-weight:800; letter-spacing:-.01em;">Open a window in</div>
+                <div style="font-size:16.5px; font-weight:800; letter-spacing:-.01em;">the Bedroom</div>
+              </div>
+            </div>
+            <div style="font-size:12px; color:#fff; opacity:.94; font-weight:600; margin-top:10px; position:relative;">It's stuffy — CO₂ is 1520 ppm and still climbing.</div>
+          </div>
+
+          <!-- map / list toggle -->
+          <div style="display:flex; gap:4px; background:#f0e9e0; border-radius:13px; padding:4px; margin-bottom:13px;">
+            <button onClick="{{ showMap }}" style="{{ mapTabStyle }}">Map</button>
+            <button onClick="{{ showList }}" style="{{ listTabStyle }}">List</button>
+          </div>
+
+          <!-- ============ MAP VIEW ============ -->
+          <sc-if value="{{ isMap }}" hint-placeholder-val="{{ true }}">
+          <div style="background:#fff; border-radius:24px; padding:13px 12px 9px; box-shadow:0 8px 20px -12px rgba(120,90,60,.28); flex:1; display:flex; flex-direction:column;">
+            <div style="display:flex; justify-content:space-between; align-items:center; padding:0 5px 6px;">
+              <span style="font-size:12px; font-weight:800; color:#8a7c6c;">Your home</span>
+              <span style="display:flex; align-items:center; gap:9px; font-size:10px; font-weight:700;">
+                <span style="display:inline-flex; align-items:center; gap:4px; color:#5a8a6c;"><span style="width:13px;height:2.5px;border-radius:2px;background:#8fcfa6;"></span>live</span>
+                <span style="display:inline-flex; align-items:center; gap:4px; color:#bd5a51;"><span style="width:13px;height:2.5px;border-radius:2px;background:#ef6b62;"></span>offline</span>
+              </span>
+            </div>
+            <div style="position:relative; width:100%; height:330px;">
+              <svg viewBox="0 0 100 100" preserveAspectRatio="none" style="position:absolute; inset:0; width:100%; height:100%;">
+                <polyline points="8,28 50,7 92,28" fill="none" stroke="#efe7dc" stroke-width="1.4" vector-effect="non-scaling-stroke" stroke-linejoin="round"></polyline>
+                <line x1="8" y1="28" x2="8" y2="96" stroke="#f1ebe2" stroke-width="1.4" vector-effect="non-scaling-stroke" stroke-linecap="round"></line>
+                <line x1="92" y1="28" x2="92" y2="96" stroke="#f1ebe2" stroke-width="1.4" vector-effect="non-scaling-stroke" stroke-linecap="round"></line>
+                <line x1="8" y1="96" x2="92" y2="96" stroke="#efe7dc" stroke-width="1.4" vector-effect="non-scaling-stroke" stroke-linecap="round"></line>
+                <line x1="8" y1="44" x2="92" y2="44" stroke="#f6f1ea" stroke-width="1.2" vector-effect="non-scaling-stroke"></line>
+                <line x1="8" y1="72" x2="92" y2="72" stroke="#f6f1ea" stroke-width="1.2" vector-effect="non-scaling-stroke"></line>
+                <sc-for list="{{ lines }}" as="ln" hint-placeholder-count="5">
+                  <line x1="{{ ln.x1 }}" y1="{{ ln.y1 }}" x2="{{ ln.x2 }}" y2="{{ ln.y2 }}" stroke="{{ ln.color }}" stroke-width="{{ ln.width }}" stroke-dasharray="{{ ln.dash }}" stroke-linecap="round" vector-effect="non-scaling-stroke" style="{{ ln.anim }}"></line>
+                </sc-for>
+              </svg>
+              <sc-for list="{{ rooms }}" as="r" hint-placeholder-count="6">
+                <div style="position:absolute; left:{{ r.x }}%; top:{{ r.y }}%; transform:translate(-50%,-50%); width:104px;">
+                  <div style="background:{{ r.softBg }}; border-radius:17px; padding:7px 11px 8px; box-shadow:0 6px 13px -7px rgba(120,90,60,.3); opacity:{{ r.opacity }};">
+                    <div style="display:flex; align-items:center; gap:6px; margin-bottom:2px;">
+                      <span style="width:16px; height:16px; border-radius:50%; background:{{ r.softDotBg }}; display:flex; align-items:center; justify-content:center; flex-shrink:0;">{{ r.face }}</span>
+                      <span style="font-size:10px; font-weight:800; color:{{ r.softText }}; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; flex:1;">{{ r.short }}</span>
+                    </div>
+                    <div style="display:flex; align-items:baseline; gap:3px;">
+                      <span style="font-size:18px; font-weight:800; letter-spacing:-.02em; color:{{ r.softNum }}; line-height:1;">{{ r.primary }}</span>
+                      <span style="font-size:8px; color:{{ r.softText }}; font-weight:700; opacity:.7;">{{ r.unit }}</span>
+                      <span style="margin-left:auto; font-size:8.5px; font-weight:800; color:{{ r.agoColor }};">{{ r.ago }}</span>
+                    </div>
+                  </div>
+                </div>
+              </sc-for>
+            </div>
+          </div>
+          </sc-if>
+
+          <!-- ============ LIST VIEW ============ -->
+          <sc-if value="{{ isList }}" hint-placeholder-val="{{ false }}">
+          <div style="background:#fff; border-radius:24px; padding:6px 6px; box-shadow:0 8px 20px -12px rgba(120,90,60,.28); flex:1;">
+            <sc-for list="{{ rooms }}" as="r" hint-placeholder-count="6">
+              <div style="display:flex; align-items:center; gap:11px; padding:11px 13px; border-radius:18px; opacity:{{ r.opacity }};">
+                <span style="width:30px; height:30px; border-radius:50%; background:{{ r.softDotBg }}; display:flex; align-items:center; justify-content:center; flex-shrink:0;">{{ r.faceBig }}</span>
+                <div style="min-width:0; flex:1;">
+                  <div style="font-size:13.5px; font-weight:800; color:#3a322a; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">{{ r.name }}</div>
+                  <div style="font-size:10.5px; font-weight:700; color:#bcae9e; margin-top:2px;">{{ r.subLabel }} · {{ r.ago }}</div>
+                </div>
+                <div style="text-align:right; display:flex; align-items:baseline; gap:3px; flex-shrink:0;">
+                  <span style="font-size:18px; font-weight:800; color:{{ r.softNum }}; letter-spacing:-.02em;">{{ r.primary }}</span>
+                  <span style="font-size:9px; font-weight:700; color:{{ r.softText }}; opacity:.7;">{{ r.unit }}</span>
+                </div>
+                <span style="width:7px; height:7px; border-radius:50%; background:{{ r.connDot }}; flex-shrink:0;" title="connectivity"></span>
+              </div>
+              <div style="height:1px; background:#f4efe8; margin:0 12px;"></div>
+            </sc-for>
+          </div>
+          </sc-if>
+
+          <!-- compact actions -->
+          <div style="margin-top:13px;">
+            <div style="font-size:11px; font-weight:800; color:#bcae9e; letter-spacing:.04em; text-transform:uppercase; padding:0 4px 7px;">Suggested</div>
+            <div style="background:#fff; border-radius:18px; overflow:hidden; box-shadow:0 6px 14px -10px rgba(120,90,60,.3);">
+              <sc-for list="{{ actions }}" as="a" hint-placeholder-count="3">
+                <div style="display:flex; align-items:center; gap:10px; padding:10px 13px; border-top:1px solid {{ a.divider }};">
+                  <span style="width:9px; height:9px; border-radius:3px; background:{{ a.color }}; flex-shrink:0;"></span>
+                  <span style="font-size:13px; font-weight:800; color:#3a322a;">{{ a.title }}</span>
+                  <span style="font-size:13px; font-weight:700; color:#a99a88;">{{ a.room }}</span>
+                  <span style="margin-left:auto; font-size:11px; font-weight:700; color:{{ a.color }}; font-family:'IBM Plex Mono',monospace; white-space:nowrap;">{{ a.code }}</span>
+                </div>
+              </sc-for>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+class Component extends DCLogic {
+  state = { view: 'map' };
+  renderVals() {
+    const E = React.createElement;
+    function ic(name, color, size) {
+      const s = size || 12;
+      const base = { viewBox:'0 0 24 24', width:s, height:s, fill:'none', stroke:color||'currentColor', strokeWidth:2.4, strokeLinecap:'round', strokeLinejoin:'round' };
+      const P = {
+        window: [E('rect',{key:1,x:4,y:4,width:16,height:16,rx:1.5}),E('line',{key:2,x1:12,y1:4,x2:12,y2:20}),E('line',{key:3,x1:4,y1:12,x2:20,y2:12})],
+        check:  [E('polyline',{key:1,points:'20 6 9 17 4 12'})],
+        flat:   [E('line',{key:1,x1:5,y1:12,x2:19,y2:12})],
+        alert:  [E('line',{key:1,x1:12,y1:7,x2:12,y2:13}),E('line',{key:2,x1:12,y1:16.6,x2:12,y2:16.7})],
+        off:    [E('line',{key:1,x1:6,y1:6,x2:18,y2:18}),E('line',{key:2,x1:18,y1:6,x2:6,y2:18})],
+      };
+      return E('svg', base, ...(P[name]||P.flat));
+    }
+
+    // status -> air-quality soft palette
+    const SOFT = {
+      GOOD:     { bg:'#e9f7ee', text:'#5a8a6c', num:'#2f7d52', dotBg:'#c4ead2', face:'check' },
+      OK:       { bg:'#fdf4e3', text:'#ab8748', num:'#b5781f', dotBg:'#f6e3bb', face:'flat'  },
+      POOR:     { bg:'#fdeede', text:'#bd7048', num:'#c2581f', dotBg:'#f8d4b2', face:'alert' },
+      BAD:      { bg:'#fde8e6', text:'#bd5a51', num:'#c63b30', dotBg:'#f7c5bf', face:'alert' },
+      OFFLINE:  { bg:'#f3f1ed', text:'#b3aa9e', num:'#b3aa9e', dotBg:'#e6e0d6', face:'off'   },
+    };
+
+    const data = [
+      { key:'office',   name:'Office',      short:'Office',   hub:true,  x:30, y:55, primary:'742',  unit:'ppm',   subLabel:'CO₂',   status:'GOOD', online:true,  ago:'8s'  },
+      { key:'bedroom',  name:'Bedroom',     short:'Bedroom',  hub:false, x:18, y:22, primary:'1520', unit:'ppm',   subLabel:'CO₂',   status:'BAD',  online:true,  ago:'40s' },
+      { key:'mari',     name:"Mari's Room", short:"Mari's",   hub:false, x:50, y:22, primary:'880',  unit:'ppm',   subLabel:'CO₂',   status:'OK',   online:true,  ago:'1m'  },
+      { key:'ems',      name:"Em's Office", short:"Em's",     hub:false, x:82, y:22, primary:'980',  unit:'ppm',   subLabel:'CO₂',   status:'POOR', online:true,  ago:'55s' },
+      { key:'kitchen',  name:'Kitchen',     short:'Kitchen',  hub:false, x:72, y:55, primary:'38',   unit:'µg/m³', subLabel:'PM2.5', status:'POOR', online:true,  ago:'2m'  },
+      { key:'basement', name:'Basement',    short:'Basement', hub:false, x:50, y:83, primary:'610',  unit:'ppm',   subLabel:'CO₂',   status:'GOOD', online:false, ago:'12m ago' },
+    ];
+
+    const rooms = data.map(d => {
+      const effStatus = d.online ? d.status : 'OFFLINE';
+      const s = SOFT[effStatus] || SOFT.GOOD;
+      return Object.assign({}, d, {
+        softBg: s.bg, softText: s.text, softNum: s.num, softDotBg: s.dotBg,
+        face:    ic(s.face, s.num, 11),
+        faceBig: ic(s.face, s.num, 15),
+        connDot: d.online ? '#34a853' : '#ef6b62',
+        opacity: d.online ? '1' : '.66',
+        ago: d.online ? d.ago : 'offline',
+        agoColor: d.online ? '#cbbfb0' : '#ef6b62',
+      });
+    });
+
+    // mesh lines = CONNECTIVITY (green live, red offline)
+    const hub = data.find(d => d.hub);
+    const lines = data.filter(d => !d.hub).map(d => ({
+      x1:hub.x, y1:hub.y, x2:d.x, y2:d.y,
+      color: d.online ? '#8fcfa6' : '#ef6b62',
+      width: d.online ? 2 : 2,
+      dash:  d.online ? '1 6' : '4 5',
+      anim:  d.online ? 'animation:flow 2.6s linear infinite;' : '',
+    }));
+
+    const onlineCount = data.filter(d => d.online).length;
+    const attention = data.filter(d => d.online && (d.status==='POOR'||d.status==='BAD')).length;
+    const status = { online:String(onlineCount), total:String(data.length), updated:'8s ago', attention:String(attention) };
+
+    const C = { BAD:'#c63b30', POOR:'#c2581f' };
+    const actions = [
+      { title:'Open a window', room:'Bedroom',     code:'CO₂ 1520 ▲',  color:C.BAD,  divider:'transparent' },
+      { title:'Run the hood',  room:'Kitchen',     code:'PM2.5 38 ▲',  color:C.POOR, divider:'#f4efe8' },
+      { title:'Air it out',    room:"Em's Office", code:'TVOC 410 ▲',  color:C.POOR, divider:'#f4efe8' },
+    ];
+
+    const isMap = this.state.view === 'map';
+    const tabOn  = 'flex:1; border:none; cursor:pointer; padding:8px 0; border-radius:10px; font-family:Nunito,sans-serif; font-size:13px; font-weight:800; background:#fff; color:#3a322a; box-shadow:0 2px 6px -3px rgba(120,90,60,.4);';
+    const tabOff = 'flex:1; border:none; cursor:pointer; padding:8px 0; border-radius:10px; font-family:Nunito,sans-serif; font-size:13px; font-weight:800; background:transparent; color:#a99a88;';
+
+    return {
+      rooms, lines, status, actions,
+      heroIcon: ic('window', '#fff', 23),
+      isMap, isList: !isMap,
+      showMap:  () => this.setState({ view:'map' }),
+      showList: () => this.setState({ view:'list' }),
+      mapTabStyle:  isMap ? tabOn : tabOff,
+      listTabStyle: isMap ? tabOff : tabOn,
+    };
+  }
+}
+</script>
+</body>
+</html>
