@@ -27,6 +27,20 @@ def create_app(state: dict, lock: threading.Lock) -> Flask:
             eco2_nodes=config.ECO2_NODES,
         )
 
+    @app.route("/room/<node>")
+    def room_detail(node):
+        if node not in config.NODES:
+            return "Room not found", 404
+        return render_template(
+            "room.html",
+            node=node,
+            node_label=_web_labels.get(node, node),
+            node_sensors=config.NODE_SENSORS,
+            ens160_nodes=config.ENS160_NODES,
+            pm_nodes=config.PM_NODES,
+            eco2_nodes=config.ECO2_NODES,
+        )
+
     @app.route("/api/now")
     def api_now():
         """Return 5-minute rolling averages for ALL nodes as a dict keyed by node name.

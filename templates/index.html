@@ -329,7 +329,7 @@
       }
 
       container.innerHTML = `
-        <div style="background:${s.bg}; border-radius:17px; padding:7px 11px 8px; box-shadow:0 6px 13px -7px rgba(120,90,60,.3); opacity:${online ? '1' : '.66'};">
+        <div onclick="window.location.href='/room/${node}'" style="background:${s.bg}; border-radius:17px; padding:7px 11px 8px; box-shadow:0 6px 13px -7px rgba(120,90,60,.3); opacity:${online ? '1' : '.66'}; cursor:pointer;">
           <div style="display:flex; align-items:center; gap:6px; margin-bottom:2px;">
             <span style="width:16px; height:16px; border-radius:50%; background:${s.dotBg}; display:flex; align-items:center; justify-content:center; flex-shrink:0;">${ic(s.face, s.num, 11)}</span>
             <span style="font-size:10px; font-weight:800; color:${s.text}; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; flex:1;">${SHORT_NAMES[node] || node}</span>
@@ -358,7 +358,7 @@
       const sep    = i > 0 ? `<div style="height:1px; background:#f4efe8; margin:0 12px;"></div>` : '';
 
       return `${sep}
-        <div style="display:flex; align-items:center; gap:11px; padding:11px 13px; border-radius:18px; opacity:${online ? '1' : '.66'};">
+        <div onclick="window.location.href='/room/${node}'" style="display:flex; align-items:center; gap:11px; padding:11px 13px; border-radius:18px; opacity:${online ? '1' : '.66'}; cursor:pointer;">
           <span style="width:30px; height:30px; border-radius:50%; background:${s.dotBg}; display:flex; align-items:center; justify-content:center; flex-shrink:0;">${ic(s.face, s.num, 15)}</span>
           <div style="min-width:0; flex:1;">
             <div style="font-size:13.5px; font-weight:800; color:#3a322a; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${NODE_LABELS[node] || node}</div>

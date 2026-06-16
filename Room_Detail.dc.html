@@ -1,0 +1,442 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500;600&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; }
+    @keyframes flow { to { stroke-dashoffset: -14; } }
+    @keyframes livepulse { 0%,100% { opacity:1; } 50% { opacity:.35; } }
+    .noscroll::-webkit-scrollbar { display: none; }
+    .noscroll { -ms-overflow-style: none; scrollbar-width: none; }
+  </style>
+</helmet>
+
+<div style="min-height:100vh; background:#e9eaee; font-family:'Nunito',sans-serif; padding:40px 48px 80px; color:#3a322a;">
+  <div style="margin-bottom:28px;">
+    <h1 style="font-size:26px; font-weight:800; margin:0 0 8px; letter-spacing:-.02em; color:#3a322a;">Bancroft Air — Room Detail</h1>
+    <p style="margin:0; color:#6b6f7d; font-size:14px; max-width:560px; line-height:1.6;">Two layout approaches for the per-room detail view. Tap any room card on the dashboard to update both detail screens. Charts use 6H / 1D / 1W ranges with real threshold lines.</p>
+  </div>
+  <div style="display:flex; gap:28px; align-items:flex-start; overflow-x:auto; padding-bottom:24px;">
+    <div style="flex-shrink:0;">
+      <div style="text-align:center; margin-bottom:12px;">
+        <div style="font-size:11px; font-weight:800; color:#a99a88; text-transform:uppercase; letter-spacing:.06em;">Dashboard</div>
+        <div style="font-size:12px; font-weight:600; color:#bcae9e; margin-top:3px;">Tap a room to select</div>
+      </div>
+      {{ dashPhone }}
+    </div>
+    <div style="flex-shrink:0;">
+      <div style="text-align:center; margin-bottom:12px;">
+        <div style="font-size:11px; font-weight:800; color:#a99a88; text-transform:uppercase; letter-spacing:.06em;">A — Card Stack</div>
+        <div style="font-size:12px; font-weight:600; color:#bcae9e; margin-top:3px;">Hero + stats + scrollable charts</div>
+      </div>
+      {{ detailPhoneA }}
+    </div>
+    <div style="flex-shrink:0;">
+      <div style="text-align:center; margin-bottom:12px;">
+        <div style="font-size:11px; font-weight:800; color:#a99a88; text-transform:uppercase; letter-spacing:.06em;">B — Metric Focus</div>
+        <div style="font-size:12px; font-weight:600; color:#bcae9e; margin-top:3px;">One metric at a time + mini grid</div>
+      </div>
+      {{ detailPhoneB }}
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+class Component extends DCLogic {
+  state = { selectedRoom: 'bedroom', range: '6h', metricB: 'co2' };
+
+  renderVals() {
+    const E = React.createElement;
+    const self = this;
+    const { selectedRoom, range, metricB } = this.state;
+
+    // ── Seeded RNG ─────────────────────────────────────────────────────────
+    function seededRand(str) {
+      let s = 0;
+      for (let i = 0; i < str.length; i++) s = (((s << 5) - s) + str.charCodeAt(i)) | 0;
+      s = s || 1;
+      return () => { s ^= s << 13; s ^= s >> 17; s ^= s << 5; return (s >>> 0) / 4294967295; };
+    }
+    function genSeries(key, base, amp, noise, n) {
+      if (base == null) return [];
+      const rng = seededRand(key);
+      let v = base;
+      const pts = [];
+      for (let i = 0; i < n; i++) {
+        v += (base - v) * 0.07 + (rng() - 0.5) * noise * 2;
+        pts.push(Math.max(0, v));
+      }
+      return pts;
+    }
+
+    // ── Icons ──────────────────────────────────────────────────────────────
+    function ic(name, clr, sz) {
+      const size = sz || 14;
+      const p = { viewBox:'0 0 24 24', width:size, height:size, fill:'none', stroke:clr||'#3a322a', strokeWidth:2.4, strokeLinecap:'round', strokeLinejoin:'round' };
+      const sh = {
+        back:  [E('polyline',{key:'b',points:'15 18 9 12 15 6'})],
+        check: [E('polyline',{key:'c',points:'20 6 9 17 4 12'})],
+        flat:  [E('line',{key:'f',x1:5,y1:12,x2:19,y2:12})],
+        alert: [E('line',{key:'a1',x1:12,y1:7,x2:12,y2:13}),E('line',{key:'a2',x1:12,y1:16.5,x2:12.01,y2:16.5})],
+        x:     [E('line',{key:'x1',x1:6,y1:6,x2:18,y2:18}),E('line',{key:'x2',x1:18,y1:6,x2:6,y2:18})],
+        wind:  [E('path',{key:'w',d:'M5 8h8a4 4 0 0 0 0-8M5 16h12a4 4 0 0 1 0 8'})],
+      };
+      return E('svg', p, ...(sh[name] || sh.flat));
+    }
+
+    // ── Status palette ─────────────────────────────────────────────────────
+    const SOFT = {
+      GOOD:    { bg:'#e9f7ee', text:'#5a8a6c', num:'#2f7d52', dot:'#c4ead2', face:'check', label:'Good'    },
+      OK:      { bg:'#fdf4e3', text:'#ab8748', num:'#b5781f', dot:'#f6e3bb', face:'flat',  label:'OK'      },
+      POOR:    { bg:'#fdeede', text:'#bd7048', num:'#c2581f', dot:'#f8d4b2', face:'alert', label:'Poor'    },
+      BAD:     { bg:'#fde8e6', text:'#bd5a51', num:'#c63b30', dot:'#f7c5bf', face:'alert', label:'Bad'     },
+      OFFLINE: { bg:'#f3f1ed', text:'#b3aa9e', num:'#b3aa9e', dot:'#e6e0d6', face:'x',     label:'Offline' },
+    };
+
+    // ── Room data ──────────────────────────────────────────────────────────
+    const ROOMS = [
+      { key:'office',   name:'Office',      short:'Office',   hub:true,  x:30,y:55, status:'GOOD', online:true,  co2:742,  tempC:21.3, hum:48, aqi:1, tvoc:82,  pm25:null },
+      { key:'bedroom',  name:'Bedroom',     short:'Bedroom',  hub:false, x:18,y:22, status:'BAD',  online:true,  co2:1520, tempC:20.1, hum:52, aqi:3, tvoc:410, pm25:null },
+      { key:'mari',     name:"Mari's Room", short:"Mari's",   hub:false, x:50,y:22, status:'OK',   online:true,  co2:880,  tempC:22.4, hum:55, aqi:2, tvoc:165, pm25:null },
+      { key:'ems',      name:"Em's Office", short:"Em's",     hub:false, x:82,y:22, status:'POOR', online:true,  co2:980,  tempC:21.8, hum:50, aqi:2, tvoc:250, pm25:null },
+      { key:'kitchen',  name:'Kitchen',     short:'Kitchen',  hub:false, x:72,y:55, status:'POOR', online:true,  co2:null, tempC:23.5, hum:58, aqi:2, tvoc:320, pm25:38   },
+      { key:'basement', name:'Basement',    short:'Basement', hub:false, x:50,y:83, status:'GOOD', online:false, co2:610,  tempC:18.2, hum:62, aqi:null, tvoc:null, pm25:null },
+    ];
+
+    const room   = ROOMS.find(r => r.key === selectedRoom) || ROOMS[1];
+    const tempF  = room.tempC != null ? +(room.tempC * 9 / 5 + 32).toFixed(1) : null;
+
+    // ── Chart configs (keyed by current room) ──────────────────────────────
+    const CC = {
+      co2:  { label:'CO₂',        unit:'ppm',   color:'#c2581f', base:room.co2,  amp:200, noise:85,  thresholds:[{v:800,c:'#2f7d52'},{v:1000,c:'#b5781f'},{v:1500,c:'#c63b30'}] },
+      temp: { label:'Temperature', unit:'°F',    color:'#4a7eb5', base:tempF,     amp:5,   noise:1.2, thresholds:[] },
+      hum:  { label:'Humidity',    unit:'%RH',   color:'#5a8a6c', base:room.hum,  amp:6,   noise:2,   thresholds:[{v:30,c:'#c2a21f'},{v:70,c:'#c2a21f'}] },
+      aqi:  { label:'AQI',         unit:'index', color:'#7c5cbf', base:room.aqi,  amp:1,   noise:0.35,min:0,max:5, thresholds:[{v:2,c:'#c2a21f'},{v:3,c:'#c2581f'}] },
+      tvoc: { label:'TVOC',        unit:'ppb',   color:'#b87333', base:room.tvoc, amp:90,  noise:35,  thresholds:[{v:150,c:'#34a853'},{v:250,c:'#c2a21f'},{v:500,c:'#c2581f'}] },
+      pm25: { label:'PM2.5',       unit:'µg/m³', color:'#bd5a51', base:room.pm25, amp:12,  noise:5,   thresholds:[{v:12,c:'#34a853'},{v:35,c:'#c2a21f'}] },
+    };
+
+    const ROOM_METRICS = {
+      office:   ['co2','temp','hum','aqi','tvoc'],
+      bedroom:  ['co2','temp','hum','aqi','tvoc'],
+      mari:     ['co2','temp','hum','aqi','tvoc'],
+      ems:      ['co2','temp','hum','aqi','tvoc'],
+      kitchen:  ['pm25','temp','hum','aqi','tvoc'],
+      basement: ['co2','temp','hum'],
+    };
+
+    const roomMx = ROOM_METRICS[room.key] || ['co2','temp','hum'];
+    const safeB  = roomMx.includes(metricB) ? metricB : roomMx[0];
+    const N      = { '6h':72, '1d':144, '1w':168 }[range] || 72;
+    const xL     = { '6h':['6h ago','3h ago','now'], '1d':['24h ago','12h ago','now'], '1w':['7d ago','3d ago','now'] }[range] || ['older','','now'];
+
+    // ── SVG chart builder ──────────────────────────────────────────────────
+    function mkChart(mk, cW, cH, gid) {
+      const cfg = CC[mk];
+      if (!cfg || cfg.base == null) return null;
+      const raw  = genSeries(`${room.key}_${mk}_${range}`, cfg.base, cfg.amp, cfg.noise, N);
+      if (!raw.length) return null;
+      const step = Math.max(1, Math.floor(raw.length / 44));
+      const vals = raw.filter((_, i) => i % step === 0 || i === raw.length - 1);
+      const mn   = cfg.min !== undefined ? cfg.min : Math.min(...vals) * 0.9;
+      const mx   = cfg.max !== undefined ? cfg.max : Math.max(...vals) * 1.1;
+      const span = (mx - mn) || 1;
+      const pts  = vals.map((v, i) => ({
+        x: +((i / (vals.length - 1)) * cW).toFixed(2),
+        y: +(cH - ((Math.min(mx, Math.max(mn, v)) - mn) / span) * (cH - 5) - 2.5).toFixed(2),
+      }));
+      const lnStr = pts.map(p => `${p.x},${p.y}`).join(' ');
+      const arStr = `0,${cH} ${lnStr} ${cW},${cH}`;
+      const last  = vals[vals.length - 1];
+      const trend = last > vals[0] * 1.06 ? '▲' : last < vals[0] * 0.94 ? '▼' : '—';
+      const ep    = pts[pts.length - 1];
+      return {
+        el: E('svg', { viewBox:`0 0 ${cW} ${cH}`, width:'100%', height:cH, style:{ display:'block', overflow:'visible' } },
+          E('defs', null,
+            E('linearGradient', { id:gid, x1:'0', y1:'0', x2:'0', y2:'1' },
+              E('stop', { offset:'0%',   stopColor:cfg.color, stopOpacity:0.2  }),
+              E('stop', { offset:'100%', stopColor:cfg.color, stopOpacity:0.02 })
+            )
+          ),
+          ...cfg.thresholds.map((t,i) => {
+            if (t.v <= mn || t.v >= mx) return null;
+            const ty = +(cH - ((t.v - mn) / span) * (cH - 5) - 2.5).toFixed(2);
+            return E('line', { key:`t${i}`, x1:0, y1:ty, x2:cW, y2:ty, stroke:t.c, strokeWidth:0.8, strokeDasharray:'2 4', opacity:0.55 });
+          }).filter(Boolean),
+          E('polygon',  { points:arStr, fill:`url(#${gid})` }),
+          E('polyline', { points:lnStr, fill:'none', stroke:cfg.color, strokeWidth:1.8, strokeLinecap:'round', strokeLinejoin:'round' }),
+          E('circle',   { cx:ep.x, cy:ep.y, r:2.8, fill:cfg.color, stroke:'#fbf7f2', strokeWidth:1.4 })
+        ),
+        trend, cfg,
+      };
+    }
+
+    // ── Phone bezel ────────────────────────────────────────────────────────
+    function phone(children) {
+      return E('div', { style:{ width:390, background:'#1a1a1a', borderRadius:48, padding:11, boxShadow:'0 34px 70px -24px rgba(20,22,34,.55)' } },
+        E('div', { style:{ background:'#fbf7f2', borderRadius:38, overflow:'hidden', height:812, display:'flex', flexDirection:'column', fontFamily:"'Nunito',sans-serif" } },
+          ...children
+        )
+      );
+    }
+
+    function statusBar() {
+      return E('div', { style:{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'14px 28px 6px', fontSize:13, fontWeight:700, color:'#4a4036', flexShrink:0 } },
+        E('span', null, '9:41'),
+        E('span', { style:{ display:'flex', gap:5, alignItems:'center' } },
+          E('span', { style:{ width:7, height:7, borderRadius:'50%', background:'#34c759', animation:'livepulse 2.4s ease-in-out infinite' } }),
+          E('span', { style:{ fontSize:11, color:'#a99a88', fontWeight:700 } }, 'live')
+        )
+      );
+    }
+
+    // ── DASHBOARD PHONE ────────────────────────────────────────────────────
+    const hub     = ROOMS.find(r => r.hub);
+    const meshLns = ROOMS.filter(r => !r.hub).map(r => ({
+      x1:hub.x, y1:hub.y, x2:r.x, y2:r.y,
+      clr:r.online ? '#8fcfa6' : '#ef6b62',
+      dash:r.online ? '1 6' : '4 5',
+      live:r.online,
+    }));
+
+    const dashPhone = phone([
+      statusBar(),
+      E('div', { style:{ padding:'2px 16px 8px', flexShrink:0 } },
+        E('div', { style:{ display:'flex', justifyContent:'space-between', alignItems:'center' } },
+          E('div', null,
+            E('div', { style:{ fontSize:21, fontWeight:800, letterSpacing:'-.02em', color:'#3a322a' } }, 'Bancroft Air'),
+            E('div', { style:{ fontSize:11, fontWeight:700, color:'#5a8a6c', marginTop:2 } }, '5/6 online · tap a room →')
+          ),
+          E('div', { style:{ textAlign:'right' } },
+            E('div', { style:{ fontSize:19, fontWeight:800, color:'#c63b30', lineHeight:1 } }, '2'),
+            E('div', { style:{ fontSize:9, color:'#a99a88', fontWeight:700, textTransform:'uppercase', letterSpacing:'.04em', marginTop:2 } }, 'to fix')
+          )
+        )
+      ),
+      // Hero
+      E('div', { style:{ margin:'0 16px 10px', background:'linear-gradient(135deg,#ff8a5c,#ef5e4e)', borderRadius:20, padding:'13px 17px', position:'relative', overflow:'hidden', boxShadow:'0 12px 22px -12px rgba(239,94,78,.55)', flexShrink:0 } },
+        E('div', { style:{ position:'absolute', right:-18, top:-18, width:78, height:78, borderRadius:'50%', background:'rgba(255,255,255,.12)' } }),
+        E('div', { style:{ display:'flex', alignItems:'center', gap:12, position:'relative' } },
+          E('div', { style:{ width:42, height:42, borderRadius:'50%', background:'rgba(255,255,255,.24)', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 } },
+            E('svg', { viewBox:'0 0 24 24', width:20, height:20, fill:'none', stroke:'#fff', strokeWidth:2.2, strokeLinecap:'round' },
+              E('rect',{x:3,y:3,width:18,height:18,rx:1.5}),E('line',{x1:12,y1:3,x2:12,y2:21}),E('line',{x1:3,y1:12,x2:21,y2:12})
+            )
+          ),
+          E('div', { style:{ color:'#fff', lineHeight:1.2 } },
+            E('div', { style:{ fontSize:15, fontWeight:800, letterSpacing:'-.01em' } }, 'Open a window'),
+            E('div', { style:{ fontSize:15, fontWeight:800, letterSpacing:'-.01em' } }, 'in the Bedroom')
+          )
+        ),
+        E('div', { style:{ fontSize:11.5, color:'#fff', opacity:.94, fontWeight:600, marginTop:9, position:'relative' } }, "It's stuffy — CO₂ is 1520 ppm and climbing.")
+      ),
+      // Map card
+      E('div', { style:{ flex:1, margin:'0 16px 8px', background:'#fff', borderRadius:24, overflow:'hidden', boxShadow:'0 8px 20px -12px rgba(120,90,60,.28)', display:'flex', flexDirection:'column' } },
+        E('div', { style:{ padding:'10px 14px 6px', display:'flex', justifyContent:'space-between', alignItems:'center', flexShrink:0 } },
+          E('span', { style:{ fontSize:11.5, fontWeight:800, color:'#8a7c6c' } }, 'Your home'),
+          E('span', { style:{ display:'flex', gap:8, fontSize:10, fontWeight:700 } },
+            E('span', { style:{ display:'inline-flex', alignItems:'center', gap:4, color:'#5a8a6c' } }, E('span',{style:{width:13,height:2.5,borderRadius:2,background:'#8fcfa6',display:'inline-block'}}), 'live'),
+            E('span', { style:{ display:'inline-flex', alignItems:'center', gap:4, color:'#bd5a51' } }, E('span',{style:{width:13,height:2.5,borderRadius:2,background:'#ef6b62',display:'inline-block'}}), 'offline')
+          )
+        ),
+        E('div', { style:{ flex:1, position:'relative', margin:'0 8px 8px' } },
+          E('svg', { viewBox:'0 0 100 100', preserveAspectRatio:'none', style:{ position:'absolute', inset:0, width:'100%', height:'100%' } },
+            E('polyline',{points:'8,28 50,7 92,28',fill:'none',stroke:'#efe7dc',strokeWidth:1.4,vectorEffect:'non-scaling-stroke',strokeLinejoin:'round'}),
+            E('line',{x1:8,y1:28,x2:8,y2:96,stroke:'#f1ebe2',strokeWidth:1.4,vectorEffect:'non-scaling-stroke'}),
+            E('line',{x1:92,y1:28,x2:92,y2:96,stroke:'#f1ebe2',strokeWidth:1.4,vectorEffect:'non-scaling-stroke'}),
+            E('line',{x1:8,y1:96,x2:92,y2:96,stroke:'#efe7dc',strokeWidth:1.4,vectorEffect:'non-scaling-stroke'}),
+            E('line',{x1:8,y1:44,x2:92,y2:44,stroke:'#f6f1ea',strokeWidth:1.2,vectorEffect:'non-scaling-stroke'}),
+            E('line',{x1:8,y1:72,x2:92,y2:72,stroke:'#f6f1ea',strokeWidth:1.2,vectorEffect:'non-scaling-stroke'}),
+            ...meshLns.map((l,i) => E('line',{key:i,x1:l.x1,y1:l.y1,x2:l.x2,y2:l.y2,stroke:l.clr,strokeWidth:2,strokeDasharray:l.dash,strokeLinecap:'round',vectorEffect:'non-scaling-stroke',style:{animation:l.live?'flow 2.6s linear infinite':'none'}}))
+          ),
+          ...ROOMS.map(r => {
+            const eff = r.online ? r.status : 'OFFLINE';
+            const s   = SOFT[eff];
+            const sel = r.key === selectedRoom;
+            const prim = r.co2 != null ? r.co2 : r.pm25;
+            const unit = r.co2 != null ? 'ppm' : 'µg/m³';
+            return E('div', { key:r.key, onClick:()=>self.setState({selectedRoom:r.key}), style:{ position:'absolute', left:`${r.x}%`, top:`${r.y}%`, transform:'translate(-50%,-50%)', width:90, cursor:'pointer', userSelect:'none' } },
+              E('div', { style:{ background:s.bg, borderRadius:15, padding:'5px 9px 7px', opacity:r.online?1:0.6, transition:'box-shadow .12s',
+                boxShadow:sel ? `0 0 0 2.5px ${s.num},0 6px 16px -6px rgba(120,90,60,.4)` : '0 4px 10px -5px rgba(120,90,60,.28)' } },
+                E('div', { style:{ display:'flex', alignItems:'center', gap:4, marginBottom:1 } },
+                  E('span', { style:{ width:13, height:13, borderRadius:'50%', background:s.dot, display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 } }, ic(s.face, s.num, 8)),
+                  E('span', { style:{ fontSize:9, fontWeight:800, color:s.text, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' } }, r.short)
+                ),
+                E('div', { style:{ display:'flex', alignItems:'baseline', gap:2 } },
+                  E('span', { style:{ fontSize:17, fontWeight:800, letterSpacing:'-.02em', color:s.num, lineHeight:1 } }, prim != null ? prim : '—'),
+                  E('span', { style:{ fontSize:7, fontWeight:700, color:s.text, opacity:.7 } }, unit)
+                )
+              )
+            );
+          })
+        )
+      ),
+      // Suggestions
+      E('div', { style:{ margin:'0 16px 16px', background:'#fff', borderRadius:18, overflow:'hidden', boxShadow:'0 4px 14px -10px rgba(120,90,60,.3)', flexShrink:0 } },
+        ...[
+          { title:'Open a window', room:'Bedroom', code:'CO₂ 1520 ▲', color:'#c63b30' },
+          { title:'Run the hood',  room:'Kitchen', code:'PM2.5 38 ▲',  color:'#c2581f' },
+          { title:'Air it out',    room:"Em's",    code:'TVOC 250 ▲',  color:'#c2581f' },
+        ].map((a,i) => E('div', { key:i, style:{ display:'flex', alignItems:'center', gap:8, padding:'9px 13px', borderTop:i===0?'none':'1px solid #f4efe8' } },
+          E('span', { style:{ width:8, height:8, borderRadius:2, background:a.color, flexShrink:0 } }),
+          E('span', { style:{ fontSize:12, fontWeight:800, color:'#3a322a' } }, a.title),
+          E('span', { style:{ fontSize:12, fontWeight:700, color:'#a99a88' } }, a.room),
+          E('span', { style:{ marginLeft:'auto', fontSize:10, fontWeight:700, color:a.color, fontFamily:"'IBM Plex Mono',monospace", whiteSpace:'nowrap' } }, a.code)
+        ))
+      )
+    ]);
+
+    // ── SHARED DETAIL HELPERS ──────────────────────────────────────────────
+    const rEff  = room.online ? room.status : 'OFFLINE';
+    const rS    = SOFT[rEff];
+    const primK = room.co2 != null ? 'co2' : 'pm25';
+    const primC = CC[primK];
+    const primV = room.co2 != null ? room.co2 : room.pm25;
+
+    const secStats = [
+      tempF   != null ? { label:'Temp',    val:`${tempF}°F`,       color:'#4a7eb5' } : null,
+      room.hum  != null ? { label:'Humidity',val:`${room.hum}%`,     color:'#5a8a6c' } : null,
+      room.aqi  != null ? { label:'AQI',     val:String(room.aqi),   color:'#7c5cbf' } : null,
+      room.tvoc != null ? { label:'TVOC',    val:`${room.tvoc} ppb`, color:'#b87333' } : null,
+    ].filter(Boolean);
+
+    function detailHeader() {
+      return E('div', { style:{ display:'flex', alignItems:'center', gap:8, padding:'8px 18px 10px', borderBottom:'1px solid #f4efe8', flexShrink:0 } },
+        E('button', { onClick:()=>{}, style:{ border:'none', background:'none', cursor:'pointer', padding:'4px 2px', display:'flex', alignItems:'center' } },
+          ic('back','#3a322a',22)
+        ),
+        E('span', { style:{ fontSize:18, fontWeight:800, letterSpacing:'-.01em', color:'#3a322a', flex:1 } }, room.name),
+        E('span', { style:{ fontSize:11, fontWeight:800, color:rS.num, background:rS.bg, borderRadius:20, padding:'3px 10px' } }, rS.label)
+      );
+    }
+
+    // ── VARIATION A — Card Stack ───────────────────────────────────────────
+    const detailPhoneA = phone([
+      statusBar(),
+      detailHeader(),
+      // Hero metric
+      E('div', { style:{ margin:'12px 16px 0', background:rS.bg, borderRadius:22, padding:'16px 20px', flexShrink:0 } },
+        E('div', { style:{ fontSize:10, fontWeight:800, color:rS.text, textTransform:'uppercase', letterSpacing:'.06em', marginBottom:5 } }, primC.label),
+        E('div', { style:{ display:'flex', alignItems:'baseline', gap:6 } },
+          E('span', { style:{ fontSize:50, fontWeight:800, color:rS.num, letterSpacing:'-.03em', lineHeight:1 } }, primV != null ? primV : '—'),
+          E('span', { style:{ fontSize:14, fontWeight:700, color:rS.text, opacity:.8 } }, primC.unit)
+        ),
+        E('div', { style:{ fontSize:11.5, fontWeight:700, color:rS.text, opacity:.75, marginTop:7 } },
+          room.online ? 'Updated 8s ago · stable' : 'Sensor offline'
+        )
+      ),
+      // Secondary 2×2 grid
+      E('div', { style:{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:8, margin:'10px 16px 0', flexShrink:0 } },
+        ...secStats.map((st,i) => E('div', { key:i, style:{ background:'#fff', borderRadius:14, padding:'10px 13px', boxShadow:'0 3px 8px -5px rgba(120,90,60,.2)' } },
+          E('div', { style:{ fontSize:9.5, fontWeight:700, color:'#bcae9e', textTransform:'uppercase', letterSpacing:'.04em' } }, st.label),
+          E('div', { style:{ fontSize:20, fontWeight:800, color:st.color, letterSpacing:'-.02em', marginTop:2, lineHeight:1.1 } }, st.val)
+        ))
+      ),
+      // Range pills
+      E('div', { style:{ display:'flex', gap:6, padding:'10px 18px', flexShrink:0 } },
+        ['6h','1d','1w'].map(r => E('button', { key:r, onClick:()=>self.setState({range:r}), style:{ border:'none', cursor:'pointer', borderRadius:20, padding:'5px 15px', fontSize:12, fontWeight:800, transition:'all .15s', background:range===r?'#3a322a':'#f0e9e0', color:range===r?'#fff':'#a99a88' } }, r.toUpperCase()))
+      ),
+      // Scrollable chart cards
+      E('div', { className:'noscroll', style:{ flex:1, overflowY:'auto', padding:'2px 16px 20px' } },
+        ...roomMx.map(mk => {
+          const cfg = CC[mk];
+          const ch  = mkChart(mk, 294, 78, `ga_${room.key}_${mk}`);
+          if (!ch) return null;
+          const dv = mk === 'temp' && tempF != null ? tempF.toFixed(1) : cfg.base != null ? Math.round(cfg.base) : null;
+          return E('div', { key:mk, style:{ background:'#fff', borderRadius:20, padding:'13px 15px 11px', boxShadow:'0 4px 12px -8px rgba(120,90,60,.22)', marginBottom:10 } },
+            E('div', { style:{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:7 } },
+              E('span', { style:{ fontSize:10.5, fontWeight:800, color:'#bcae9e', textTransform:'uppercase', letterSpacing:'.05em' } }, cfg.label),
+              E('div', { style:{ display:'flex', alignItems:'baseline', gap:4 } },
+                E('span', { style:{ fontSize:20, fontWeight:800, color:cfg.color, letterSpacing:'-.02em', lineHeight:1 } }, dv != null ? dv : '—'),
+                E('span', { style:{ fontSize:9, fontWeight:700, color:'#bcae9e' } }, cfg.unit),
+                E('span', { style:{ fontSize:12, color:cfg.color, opacity:.7, marginLeft:2 } }, ch.trend)
+              )
+            ),
+            ch.el,
+            E('div', { style:{ display:'flex', justifyContent:'space-between', marginTop:5 } },
+              ...xL.map((l,li) => E('span', { key:li, style:{ fontSize:9, fontWeight:700, color:'#d0c6b8' } }, l))
+            )
+          );
+        }).filter(Boolean)
+      )
+    ]);
+
+    // ── VARIATION B — Metric Focus ─────────────────────────────────────────
+    const bCfg  = CC[safeB];
+    const bigCh = mkChart(safeB, 294, 128, `gb_${room.key}_${safeB}`);
+    const bVal  = safeB === 'temp' && tempF != null ? tempF.toFixed(1) : bCfg.base != null ? Math.round(bCfg.base) : null;
+
+    const detailPhoneB = phone([
+      statusBar(),
+      detailHeader(),
+      // Metric selector pills
+      E('div', { style:{ display:'flex', gap:5, padding:'10px 16px 0', overflowX:'auto', flexShrink:0 } },
+        ...roomMx.map(mk => {
+          const cfg = CC[mk];
+          const act = mk === safeB;
+          return E('button', { key:mk, onClick:()=>self.setState({metricB:mk}), style:{ border:'none', cursor:'pointer', borderRadius:20, padding:'6px 12px', fontSize:11.5, fontWeight:800, flexShrink:0, whiteSpace:'nowrap', transition:'all .15s', background:act?cfg.color:'#f0e9e0', color:act?'#fff':'#a99a88' } }, cfg.label);
+        })
+      ),
+      // Big current value — colored container (matches Option A hero)
+      E('div', { style:{ margin:'10px 16px 12px', background:rS.bg, borderRadius:22, padding:'14px 18px', flexShrink:0 } },
+        E('div', { style:{ fontSize:10, fontWeight:800, color:rS.text, textTransform:'uppercase', letterSpacing:'.06em', marginBottom:6 } }, bCfg.label),
+        E('div', { style:{ display:'flex', alignItems:'baseline', gap:8 } },
+          E('span', { style:{ fontSize:52, fontWeight:800, color:rS.num, letterSpacing:'-.03em', lineHeight:1 } }, bVal != null ? bVal : '—'),
+          E('div', null,
+            E('div', { style:{ fontSize:13, fontWeight:700, color:rS.text, opacity:.8 } }, bCfg.unit || 'index'),
+            bigCh ? E('div', { style:{ fontSize:11, fontWeight:700, color:rS.text, opacity:.7 } }, bigCh.trend + ' trending') : null
+          )
+        ),
+        E('div', { style:{ fontSize:11.5, fontWeight:700, color:rS.text, opacity:.75, marginTop:8 } },
+          room.online ? 'Updated 8s ago · stable' : 'Sensor offline'
+        )
+      ),
+      // Main chart card with inline range selector
+      E('div', { style:{ margin:'0 16px', background:'#fff', borderRadius:22, padding:'13px 15px 11px', boxShadow:'0 6px 16px -10px rgba(120,90,60,.3)', flexShrink:0 } },
+        E('div', { style:{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:10 } },
+          E('span', { style:{ fontSize:10.5, fontWeight:800, color:'#bcae9e', textTransform:'uppercase', letterSpacing:'.05em' } }, bCfg.label + ' history'),
+          E('div', { style:{ display:'flex', gap:3 } },
+            ['6h','1d','1w'].map(r => E('button', { key:r, onClick:()=>self.setState({range:r}), style:{ border:'none', cursor:'pointer', borderRadius:12, padding:'3px 9px', fontSize:10, fontWeight:800, background:range===r?'#3a322a':'transparent', color:range===r?'#fff':'#c0b4a4' } }, r.toUpperCase()))
+          )
+        ),
+        bigCh ? bigCh.el : E('div', { style:{ height:128, display:'flex', alignItems:'center', justifyContent:'center', color:'#d0c6b8', fontSize:12 } }, 'No data'),
+        E('div', { style:{ display:'flex', justifyContent:'space-between', marginTop:6 } },
+          ...xL.map((l,i) => E('span', { key:i, style:{ fontSize:9, fontWeight:700, color:'#d0c6b8' } }, l))
+        )
+      ),
+      // Mini grid — all other readings
+      E('div', { className:'noscroll', style:{ flex:1, overflowY:'auto', padding:'10px 16px 20px' } },
+        E('div', { style:{ fontSize:10, fontWeight:800, color:'#bcae9e', textTransform:'uppercase', letterSpacing:'.05em', marginBottom:9 } }, 'All readings'),
+        E('div', { style:{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:8 } },
+          ...roomMx.filter(mk => mk !== safeB).map(mk => {
+            const cfg = CC[mk];
+            const mc  = mkChart(mk, 112, 34, `gm_${room.key}_${mk}`);
+            const dv  = mk === 'temp' && tempF != null ? tempF.toFixed(1) : cfg.base != null ? Math.round(cfg.base) : null;
+            return E('div', { key:mk, onClick:()=>self.setState({metricB:mk}), style:{ background:'#fff', borderRadius:16, padding:'10px 12px', boxShadow:'0 3px 8px -5px rgba(120,90,60,.2)', cursor:'pointer' } },
+              E('div', { style:{ fontSize:9, fontWeight:800, color:'#bcae9e', textTransform:'uppercase', letterSpacing:'.04em', marginBottom:4 } }, cfg.label),
+              mc ? mc.el : null,
+              E('div', { style:{ fontSize:18, fontWeight:800, color:cfg.color, letterSpacing:'-.02em', marginTop:3 } },
+                dv != null ? dv : '—',
+                E('span', { style:{ fontSize:8, fontWeight:700, color:'#bcae9e', marginLeft:2 } }, cfg.unit)
+              )
+            );
+          })
+        )
+      )
+    ]);
+
+    return { dashPhone, detailPhoneA, detailPhoneB };
+  }
+}
+</script>
+</body>
+</html>
