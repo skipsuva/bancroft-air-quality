@@ -100,8 +100,9 @@ MQTT broker is Mosquitto running locally at `localhost:1883`. The office node pu
 | `db.py` | All SQLite logic. Every function opens/closes its own connection (WAL mode, never share across threads) |
 | `display.py` | `OLEDDisplay` class. Uses luma.oled sh1106 driver. Gracefully skips if hardware absent |
 | `notifier.py` | `Notifier` class. ntfy.sh POST with per-node, per-condition 30-min cooldown |
-| `web_app.py` | Flask factory `create_app(state, lock)`. Routes: `/`, `/api/now`, `/api/history` |
-| `templates/index.html` | Single-file dashboard. Chart.js from CDN |
+| `web_app.py` | Flask factory `create_app(state, lock)`. Routes: `/`, `/room/<node>`, `/api/now`, `/api/history` |
+| `templates/index.html` | Single-file dashboard. Vanilla JS, inline SVG for mesh map, no charting library. |
+| `templates/room.html` | Per-room detail view. Metric selector pills, hero value, SVG area chart (built inline, no library), mini sparkline grid. Navigated to from dashboard cards. |
 | `bancroft-air.service` | systemd unit for sensor_daemon |
 | `mqtt_listener.service` | systemd unit for mqtt_listener |
 | `air_quality.db` | SQLite database (auto-created on first run) |
@@ -187,11 +188,21 @@ Daily summary covers all nodes with data; formatted as one ntfy message.
 
 ---
 
-## Web API
+## Web Routes & API
 
+- `GET /` — dashboard (`index.html`). Map and list views of all nodes; tapping a room card navigates to the room detail page.
+- `GET /room/<node>` — per-room detail view (`room.html`). 404 if node is not in `config.NODES`. Passes `node_sensors`, `eco2_nodes`, etc. to the template for metric availability logic.
 - `GET /api/now` — dict keyed by node name; each value is a 5-minute smoothed average (falls back to raw `node_current`, then in-memory state for office)
 - `GET /api/history?range=<range>&node=<node>&smooth=1` — array of readings
   - Ranges: `2h`, `6h`, `1d` (uses `readings_1min`); `1w`, `1m` (uses `readings_10min`); `3m`, `6m` (hourly buckets from `readings_10min`); `1y`, `all` (uses `daily_summaries`, office only)
   - `node` param filters to one node; omit for all nodes
   - `smooth=1` forces `readings_10min` for short ranges
   - Legacy aliases: `24h`→`1d`, `7d`→`1w`, `30d`→`1m`
+
+### Room detail JS patterns
+
+`room.html` is self-contained vanilla JS. Key conventions:
+- `AVAILABLE_METRICS` is derived from `NODE_SENSORS[NODE]` at page load — kitchen gets `pm25` first, all others get `co2` first (primary metric drives status color)
+- `buildSVGChart(rows, metricKey, width, height, gradId)` — downsample to 44 pts, Y scale min×0.9→max×1.1 (AQI fixed 0–5), renders `<polygon>` fill + `<polyline>` line + threshold `<line>` dashes
+- Gradient IDs must be unique per chart instance (e.g. `main-bedroom-co2`, `mini-bedroom-temp`)
+- `localStorage` keys: `bancroft_metric_{node}` (selected metric per room), `bancroft_range` (shared range), `bancroft_view` (dashboard map/list)
