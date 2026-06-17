@@ -27,7 +27,6 @@
 
   <!-- Status bar -->
   <div style="display:flex; justify-content:space-between; align-items:center; padding:14px 28px 4px; font-size:13px; font-weight:700; color:#4a4036;">
-    <span id="status-time">—</span>
     <span style="display:flex; gap:5px; align-items:center;">
       <span style="width:7px; height:7px; border-radius:50%; background:#34c759; display:inline-block; animation:livepulse 2.4s ease-in-out infinite;"></span>
       <span style="font-size:11px; color:#a99a88; font-weight:700;">live</span>
@@ -427,13 +426,6 @@
 
   let _lastData = {};
 
-  function updateClock() {
-    const now = new Date();
-    const h   = now.getHours().toString().padStart(2, '0');
-    const m   = now.getMinutes().toString().padStart(2, '0');
-    document.getElementById('status-time').textContent = `${h}:${m}`;
-  }
-
   function tickTimestamps() {
     let latestTs = null;
     NODES.forEach(node => {
@@ -482,8 +474,6 @@
   // ── Boot ─────────────────────────────────────────────────────────────────────
 
   setView(currentView);
-  updateClock();
-  setInterval(updateClock, 1000);
   setInterval(tickTimestamps, 1000);
   refreshCurrent();
   setInterval(refreshCurrent, 10000);
