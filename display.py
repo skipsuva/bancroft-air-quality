@@ -16,12 +16,6 @@ def _co2_label(co2: float) -> str:
     return "BAD!"
 
 
-_AQI_LABELS = {1: "EXCELLENT", 2: "GOOD", 3: "MODERATE", 4: "POOR", 5: "UNHEALTHY"}
-
-
-def _aqi_label(aqi: int) -> str:
-    return _AQI_LABELS.get(aqi, "--")
-
 
 class OLEDDisplay:
     def __init__(self, state: dict, lock: threading.Lock) -> None:
@@ -58,7 +52,7 @@ class OLEDDisplay:
 
         label = _co2_label(co2) if co2 is not None else "--"
         co2_str = f"CO2: {co2:.0f} ppm" if co2 is not None else "CO2: --"
-        aqi_str = f"AQI: {_aqi_label(aqi)}" if aqi is not None else "AQI: --"
+        aqi_str = f"AQI: {aqi}" if aqi is not None else "AQI: --"
         tvoc_str = f"VOC:{tvoc}" if tvoc is not None else "VOC:--"
 
         label_w = draw.textlength(label, font=self._font_status)

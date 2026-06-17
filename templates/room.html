@@ -89,7 +89,7 @@
 
   const METRIC_CONFIGS = {
     co2:  { label:'CO₂',        unit:'ppm',   color:'#c2581f', field:'co2_ppm',      thresholds:[{v:800,c:'#2f7d52'},{v:1000,c:'#a56b15'},{v:1500,c:'#b52520'}] },
-    temp: { label:'Temperature', unit:'°F',    color:'#4a7eb5', field:'temp_c',       thresholds:[], convert: v => +(v * 9/5 + 32).toFixed(1) },
+    temp: { label:'Temp', unit:'°F',    color:'#4a7eb5', field:'temp_c',       thresholds:[], convert: v => +(v * 9/5 + 32).toFixed(1) },
     hum:  { label:'Humidity',    unit:'%RH',   color:'#5a8a6c', field:'humidity_pct', thresholds:[{v:30,c:'#c2a21f'},{v:70,c:'#c2a21f'}] },
     aqi:  { label:'AQI',         unit:'index', color:'#7c5cbf', field:'aqi',          thresholds:[{v:2,c:'#c2a21f'},{v:3,c:'#c2581f'}], fixedMin:0, fixedMax:5 },
     tvoc: { label:'TVOC',        unit:'ppb',   color:'#b87333', field:'tvoc',         thresholds:[{v:150,c:'#34a853'},{v:250,c:'#c2a21f'},{v:500,c:'#c2581f'}] },
