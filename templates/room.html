@@ -88,19 +88,20 @@
   const STALE_MS     = 5 * 60 * 1000;
 
   const METRIC_CONFIGS = {
-    co2:  { label:'CO₂',        unit:'ppm',   color:'#c2581f', field:'co2_ppm',      thresholds:[{v:800,c:'#2f7d52'},{v:1000,c:'#b5781f'},{v:1500,c:'#c63b30'}] },
+    co2:  { label:'CO₂',        unit:'ppm',   color:'#c2581f', field:'co2_ppm',      thresholds:[{v:800,c:'#2f7d52'},{v:1000,c:'#a56b15'},{v:1500,c:'#b52520'}] },
     temp: { label:'Temperature', unit:'°F',    color:'#4a7eb5', field:'temp_c',       thresholds:[], convert: v => +(v * 9/5 + 32).toFixed(1) },
     hum:  { label:'Humidity',    unit:'%RH',   color:'#5a8a6c', field:'humidity_pct', thresholds:[{v:30,c:'#c2a21f'},{v:70,c:'#c2a21f'}] },
     aqi:  { label:'AQI',         unit:'index', color:'#7c5cbf', field:'aqi',          thresholds:[{v:2,c:'#c2a21f'},{v:3,c:'#c2581f'}], fixedMin:0, fixedMax:5 },
     tvoc: { label:'TVOC',        unit:'ppb',   color:'#b87333', field:'tvoc',         thresholds:[{v:150,c:'#34a853'},{v:250,c:'#c2a21f'},{v:500,c:'#c2581f'}] },
     pm25: { label:'PM2.5',       unit:'µg/m³', color:'#bd5a51', field:'pm25',         thresholds:[{v:12,c:'#34a853'},{v:35,c:'#c2a21f'}] },
+    eco2: { label:'ECO₂',        unit:'ppm',   color:'#6b8e6e', field:'eco2',          thresholds:[{v:800,c:'#2f7d52'},{v:1000,c:'#a56b15'},{v:1500,c:'#b52520'}] },
   };
 
   const STATUS_PALETTE = {
     GOOD:    { bg:'#e9f7ee', text:'#5a8a6c', num:'#2f7d52', label:'Good'    },
-    OK:      { bg:'#fdf4e3', text:'#ab8748', num:'#b5781f', label:'OK'      },
-    POOR:    { bg:'#fdeede', text:'#bd7048', num:'#c2581f', label:'Poor'    },
-    BAD:     { bg:'#fde8e6', text:'#bd5a51', num:'#c63b30', label:'Bad'     },
+    OK:      { bg:'#fcefd8', text:'#9d7530', num:'#a56b15', label:'OK'      },
+    POOR:    { bg:'#fcdecb', text:'#ad5c28', num:'#ac4810', label:'Poor'    },
+    BAD:     { bg:'#f9d2ce', text:'#a83530', num:'#b52520', label:'Bad'     },
     OFFLINE: { bg:'#f3f1ed', text:'#b3aa9e', num:'#b3aa9e', label:'Offline' },
   };
 
@@ -109,6 +110,7 @@
   const AVAILABLE_METRICS = [];
   if (ECO2_NODES.includes(NODE)) {
     if (sensors.pm)       AVAILABLE_METRICS.push('pm25');
+    if (sensors.eco2)     AVAILABLE_METRICS.push('eco2');
   } else {
     if (sensors.co2)      AVAILABLE_METRICS.push('co2');
   }
@@ -197,6 +199,14 @@
     const trend = vals[vals.length - 1] > vals[0] * 1.06 ? '▲'
                 : vals[vals.length - 1] < vals[0] * 0.94 ? '▼' : '—';
 
+    let yLabels = '';
+    if (height >= 60) {
+      yLabels = [mx, (mn + mx) / 2, mn].map(v => {
+        const ty = +(height - ((v - mn) / span) * (height - 5) - 2.5).toFixed(2);
+        return `<text x="3" y="${ty}" font-size="9" fill="#a99a88" opacity="0.7" dominant-baseline="middle" font-family="'Nunito',sans-serif" font-weight="700">${formatValue(metricKey, v)}</text>`;
+      }).join('');
+    }
+
     const svg = `<svg viewBox="0 0 ${width} ${height}" width="100%" height="${height}" style="display:block;overflow:visible">
       <defs>
         <linearGradient id="${gradId}" x1="0" y1="0" x2="0" y2="1">
@@ -207,6 +217,7 @@
       ${threshLines}
       <polygon points="${fillStr}" fill="url(#${gradId})"/>
       <polyline points="${lineStr}" fill="none" stroke="${cfg.color}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+      ${yLabels}
       <circle cx="${last.x}" cy="${last.y}" r="2.8" fill="${cfg.color}" stroke="#fbf7f2" stroke-width="1.4"/>
     </svg>`;
 

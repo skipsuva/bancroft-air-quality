@@ -148,9 +148,9 @@
 
   const SOFT = {
     GOOD:    { bg:'#e9f7ee', text:'#5a8a6c', num:'#2f7d52', dotBg:'#c4ead2', face:'check' },
-    OK:      { bg:'#fdf4e3', text:'#ab8748', num:'#b5781f', dotBg:'#f6e3bb', face:'flat'  },
-    POOR:    { bg:'#fdeede', text:'#bd7048', num:'#c2581f', dotBg:'#f8d4b2', face:'alert' },
-    BAD:     { bg:'#fde8e6', text:'#bd5a51', num:'#c63b30', dotBg:'#f7c5bf', face:'alert' },
+    OK:      { bg:'#fcefd8', text:'#9d7530', num:'#a56b15', dotBg:'#f2d8a0', face:'flat'  },
+    POOR:    { bg:'#fcdecb', text:'#ad5c28', num:'#ac4810', dotBg:'#f3c08a', face:'alert' },
+    BAD:     { bg:'#f9d2ce', text:'#a83530', num:'#b52520', dotBg:'#eeaaa6', face:'alert' },
     OFFLINE: { bg:'#f3f1ed', text:'#b3aa9e', num:'#b3aa9e', dotBg:'#e6e0d6', face:'off'   },
   };
 
@@ -376,8 +376,8 @@
   // ── Render: suggested actions ────────────────────────────────────────────────
 
   function renderActions(allData) {
-    const BAD  = '#c63b30';
-    const POOR = '#c2581f';
+    const BAD  = '#b52520';
+    const POOR = '#ac4810';
     const acts = [];
 
     NODES.forEach(node => {
