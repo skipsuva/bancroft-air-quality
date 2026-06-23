@@ -43,7 +43,7 @@ NODE_SENSORS = {
     "bedroom":     {"co2": True,  "temp": True, "humidity": True, "aqi": True,  "tvoc": True,  "pm": False, "eco2": False},
     "toddler":     {"co2": True,  "temp": True, "humidity": True, "aqi": True,  "tvoc": True,  "pm": False, "eco2": False},
     "wifesoffice": {"co2": True,  "temp": True, "humidity": True, "aqi": True,  "tvoc": True,  "pm": False, "eco2": False},
-    "basement":    {"co2": True,  "temp": True, "humidity": True, "aqi": False, "tvoc": False, "pm": False, "eco2": False},
+    "basement":    {"co2": True,  "temp": True, "humidity": True, "aqi": True,  "tvoc": True,  "pm": False, "eco2": False},
     "kitchen":     {"co2": False, "temp": True, "humidity": True, "aqi": True,  "tvoc": True,  "pm": True,  "eco2": True},
 }
 
