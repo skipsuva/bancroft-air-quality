@@ -19,8 +19,13 @@ CO2_CRITICAL_PPM = 1500
 
 SUMMARY_HOUR = 8
 
-# MQTT
-CO2_HIGH_STREAK_MQTT = 5   # 5 readings × 60s ESP32 interval = 5-minute sustained threshold
+# Node names (office is this Pi; others are ESP32 nodes)
+OFFICE_NODE = "office"
+
+# CO₂ "elevated" alert fires after a sustained streak. The two daemons read at
+# different cadences, so the streak counts differ but both span ~5 minutes:
+CO2_HIGH_STREAK_SENSOR = 30   # 30 readings × 10s office interval = 5-minute sustained threshold
+CO2_HIGH_STREAK_MQTT   = 5    # 5 readings × 60s ESP32 interval  = 5-minute sustained threshold
 
 MQTT_BROKER = "localhost"
 MQTT_PORT = 1883
@@ -57,3 +62,15 @@ CO2_LABELS = [
     (1500, "POOR"),
     (float("inf"), "BAD!"),
 ]
+
+# Status thresholds drive the dashboard's GOOD/OK/POOR/BAD colour bands. They are
+# the single source of truth: web_app passes them to the templates so the frontend
+# never hardcodes its own copies. CO₂ bands are derived from CO2_LABELS so the two
+# can't drift apart.
+STATUS_THRESHOLDS = {
+    "co2": [t for t, _ in CO2_LABELS if t != float("inf")],  # [800, 1000, 1500]
+    "pm25": [12, 35, 55],
+}
+
+# A node whose latest reading is older than this is shown as OFFLINE.
+STALE_SECONDS = 300

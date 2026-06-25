@@ -1,5 +1,5 @@
 smbus2
-pyserial
+paho-mqtt
 luma.oled
 flask
 requests

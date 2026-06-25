@@ -129,13 +129,24 @@
 </div>
 
 <script>
-  const NODE_LABELS  = {{ node_labels | tojson }};
-  const NODES        = {{ nodes | tojson }};
-  const NODE_SENSORS = {{ node_sensors | tojson }};
-  const ECO2_NODES   = {{ eco2_nodes | tojson }};
-  const ENS160_NODES = {{ ens160_nodes | tojson }};
+  window.BANCROFT = {{ {
+    'nodes': nodes,
+    'node_labels': node_labels,
+    'node_sensors': node_sensors,
+    'ens160_nodes': ens160_nodes,
+    'eco2_nodes': eco2_nodes,
+    'status_thresholds': status_thresholds,
+    'stale_seconds': stale_seconds,
+  } | tojson }};
+</script>
+<script src="{{ url_for('static', filename='shared.js') }}"></script>
+<script>
+  const NODES        = window.BANCROFT.nodes;
+  const NODE_LABELS  = window.BANCROFT.node_labels;
+  const NODE_SENSORS = window.BANCROFT.node_sensors;
+  const ECO2_NODES   = window.BANCROFT.eco2_nodes;
 
-  const STALE_MS = 5 * 60 * 1000;
+  // STALE_MS, STATUS_PALETTE, nodeStatus() and relAge() come from shared.js.
 
   const SHORT_NAMES = {
     office:      'Office',
@@ -144,14 +155,6 @@
     wifesoffice: "Em's",
     kitchen:     'Kitchen',
     basement:    'Basement',
-  };
-
-  const SOFT = {
-    GOOD:    { bg:'#e9f7ee', text:'#5a8a6c', num:'#2f7d52', dotBg:'#c4ead2', face:'check' },
-    OK:      { bg:'#fcefd8', text:'#9d7530', num:'#a56b15', dotBg:'#f2d8a0', face:'flat'  },
-    POOR:    { bg:'#fcdecb', text:'#ad5c28', num:'#ac4810', dotBg:'#f3c08a', face:'alert' },
-    BAD:     { bg:'#f9d2ce', text:'#a83530', num:'#b52520', dotBg:'#eeaaa6', face:'alert' },
-    OFFLINE: { bg:'#f3f1ed', text:'#b3aa9e', num:'#b3aa9e', dotBg:'#e6e0d6', face:'off'   },
   };
 
   function ic(name, color, size) {
@@ -167,25 +170,6 @@
     return `<svg ${attr}>${paths[name] || paths.flat}</svg>`;
   }
 
-  function nodeStatus(node, data) {
-    if (!data || !data.timestamp) return 'OFFLINE';
-    if (Date.now() - new Date(data.timestamp).getTime() > STALE_MS) return 'OFFLINE';
-    if (ECO2_NODES.includes(node)) {
-      const pm = data.pm25;
-      if (pm == null) return 'OFFLINE';
-      if (pm < 12) return 'GOOD';
-      if (pm < 35) return 'OK';
-      if (pm < 55) return 'POOR';
-      return 'BAD';
-    }
-    const co2 = data.co2_ppm;
-    if (co2 == null) return 'OFFLINE';
-    if (co2 < 800)  return 'GOOD';
-    if (co2 < 1000) return 'OK';
-    if (co2 < 1500) return 'POOR';
-    return 'BAD';
-  }
-
   function primaryMetric(node, data) {
     if (ECO2_NODES.includes(node)) {
       const v = data && data.pm25 != null ? data.pm25.toFixed(1) : '—';
@@ -193,15 +177,6 @@
     }
     const v = data && data.co2_ppm != null ? Math.round(data.co2_ppm) : '—';
     return { val: String(v), unit: 'ppm', label: 'CO₂' };
-  }
-
-  function relAge(ts, stale) {
-    if (stale || !ts) return 'offline';
-    const diff = Date.now() - new Date(ts).getTime();
-    if (diff < 0 || isNaN(diff)) return '';
-    if (diff < 60000)   return `${Math.round(diff / 1000)}s`;
-    if (diff < 3600000) return `${Math.round(diff / 60000)}m`;
-    return 'old';
   }
 
   // ── View toggle ──────────────────────────────────────────────────────────────
@@ -305,7 +280,7 @@
 
       const d      = allData[node];
       const st     = nodeStatus(node, d);
-      const s      = SOFT[st];
+      const s      = STATUS_PALETTE[st];
       const m      = primaryMetric(node, d);
       const stale  = !d || !d.timestamp || Date.now() - new Date(d.timestamp).getTime() > STALE_MS;
       const online = st !== 'OFFLINE';
@@ -348,7 +323,7 @@
     const rows = NODES.map((node, i) => {
       const d      = allData[node];
       const st     = nodeStatus(node, d);
-      const s      = SOFT[st];
+      const s      = STATUS_PALETTE[st];
       const m      = primaryMetric(node, d);
       const stale  = !d || !d.timestamp || Date.now() - new Date(d.timestamp).getTime() > STALE_MS;
       const online = st !== 'OFFLINE';

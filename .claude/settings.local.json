@@ -43,7 +43,12 @@
       "Bash(sudo systemctl status bancroft-air --no-pager)",
       "Bash(mosquitto_pub -h localhost -t bancroft/toddler/readings -m '{\"node\":\"toddler\",\"co2\":756,\"temp_c\":20.8,\"humidity\":52.3,\"timestamp\":\"2026-05-26T17:55:00\"}')",
       "Bash(mosquitto_pub -h localhost -t bancroft/wifesoffice/readings -m '{\"node\":\"wifesoffice\",\"co2\":1012,\"temp_c\":23.5,\"humidity\":45.0,\"timestamp\":\"2026-05-26T17:55:00\"}')",
-      "Bash(claude update *)"
+      "Bash(claude update *)",
+      "Bash(.venv/bin/ruff check *)",
+      "Bash(.venv/bin/pytest -q)",
+      "Bash(.venv/bin/pip install *)",
+      "Bash(/usr/bin/python3 -c \"import sensor_daemon, mqtt_listener, web_app, util; print\\('all import OK'\\)\")",
+      "Bash(/usr/bin/python3 *)"
     ]
   }
 }

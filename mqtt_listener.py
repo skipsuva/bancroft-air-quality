@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 """
 mqtt_listener.py — Bancroft Air MQTT Listener
 
@@ -25,12 +26,10 @@ import paho.mqtt.client as mqtt
 
 import config
 import db
+import util
 from notifier import Notifier
 
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s %(levelname)s %(message)s",
-)
+util.setup_logging()
 logger = logging.getLogger(__name__)
 
 # Per-node state for 10-minute averaging and streak tracking
@@ -124,7 +123,7 @@ def _handle_message(client, userdata, msg) -> None:
 
     elapsed = (datetime.now() - state["last_write"]).total_seconds()
     if elapsed >= 600 and state["accum"]:
-        avg = _average(state["accum"])
+        avg = util.average(state["accum"])
         try:
             db.insert_reading("readings_10min", avg)
             logger.info("Wrote 10min avg for node=%s (%d readings)", node, len(state["accum"]))
@@ -132,17 +131,6 @@ def _handle_message(client, userdata, msg) -> None:
             logger.error("DB 10min insert error for node %s: %s", node, e)
         state["accum"].clear()
         state["last_write"] = datetime.now()
-
-
-def _average(readings: list[dict]) -> dict:
-    keys = ["co2_ppm", "temp_c", "humidity_pct", "pm25", "pm10", "aqi", "tvoc", "eco2"]
-    result: dict = {}
-    for k in keys:
-        vals = [r[k] for r in readings if r.get(k) is not None]
-        result[k] = round(sum(vals) / len(vals), 2) if vals else None
-    result["timestamp"] = readings[-1]["timestamp"]
-    result["node"] = readings[-1]["node"]
-    return result
 
 
 def _on_connect(client, userdata, connect_flags, reason_code, properties) -> None:

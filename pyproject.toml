@@ -1,0 +1,14 @@
+[tool.ruff]
+line-length = 120
+target-version = "py313"
+
+[tool.ruff.lint]
+# Pyflakes (F), pycodestyle errors/warnings (E/W), import sorting (I),
+# pyupgrade (UP), and a few bugbear checks (B).
+select = ["E", "F", "W", "I", "UP", "B"]
+# Long SQL strings and inline-styled template helpers are intentionally wide.
+ignore = ["E501"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]

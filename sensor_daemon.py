@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 import json
 import logging
 import signal
@@ -10,9 +11,10 @@ import smbus2
 
 import config
 import db
+import util
+import web_app
 from display import OLEDDisplay
 from notifier import Notifier
-import web_app
 
 logger = logging.getLogger(__name__)
 
@@ -86,17 +88,6 @@ def _ens160_read(bus: smbus2.SMBus) -> tuple[int, int] | None:
     return None
 
 
-def _average(readings: list[dict], node: str = "office") -> dict:
-    keys = ["co2_ppm", "temp_c", "humidity_pct", "aqi", "tvoc", "pm25", "pm10"]
-    result: dict = {}
-    for k in keys:
-        vals = [r[k] for r in readings if r.get(k) is not None]
-        result[k] = round(sum(vals) / len(vals), 2) if vals else None
-    result["timestamp"] = readings[-1]["timestamp"]
-    result["node"] = node
-    return result
-
-
 def _mqtt_connect() -> mqtt.Client | None:
     """Create and connect an MQTT client; return None on failure (non-fatal)."""
     try:
@@ -110,7 +101,7 @@ def _mqtt_connect() -> mqtt.Client | None:
         return None
 
 
-def _compute_daily_summary(target_date: date, node: str = "office") -> dict | None:
+def _compute_daily_summary(target_date: date, node: str = config.OFFICE_NODE) -> dict | None:
     readings = db.get_readings_for_date(target_date, node=node)
     if not readings:
         return None
@@ -197,7 +188,7 @@ def sensor_loop(notifier: Notifier) -> None:
                     "tvoc": tvoc,
                     "pm25": None,
                     "pm10": None,
-                    "node": "office",
+                    "node": config.OFFICE_NODE,
                 }
 
                 with _state_lock:
@@ -212,13 +203,17 @@ def sensor_loop(notifier: Notifier) -> None:
                     co2_high_streak = 0
 
                 try:
-                    db.upsert_current(reading)
                     db.upsert_node_current(reading)
                 except Exception as e:
                     logger.error("DB upsert error: %s", e)
 
                 try:
-                    notifier.check_and_alert(reading, co2_high_streak, node="office")
+                    notifier.check_and_alert(
+                        reading,
+                        co2_high_streak,
+                        node=config.OFFICE_NODE,
+                        co2_high_streak_threshold=config.CO2_HIGH_STREAK_SENSOR,
+                    )
                 except Exception as e:
                     logger.error("Notifier error: %s", e)
 
@@ -235,7 +230,7 @@ def sensor_loop(notifier: Notifier) -> None:
                 co2_high_streak = 0
 
             if (now - last_1min_write).total_seconds() >= 60 and accum_1min:
-                avg = _average(accum_1min, node="office")
+                avg = util.average(accum_1min, node=config.OFFICE_NODE)
                 try:
                     db.insert_reading("readings_1min", avg)
                     logger.info("Wrote 1min avg (%d readings)", len(accum_1min))
@@ -248,7 +243,7 @@ def sensor_loop(notifier: Notifier) -> None:
                         mqtt_client = _mqtt_connect()
                     if mqtt_client is not None:
                         payload = json.dumps({
-                            "node":      "office",
+                            "node":      config.OFFICE_NODE,
                             "co2":       avg["co2_ppm"],
                             "temp_c":    avg["temp_c"],
                             "humidity":  avg["humidity_pct"],
@@ -267,7 +262,7 @@ def sensor_loop(notifier: Notifier) -> None:
 
             if (now - last_10min_write).total_seconds() >= 600 and accum_10min:
                 try:
-                    db.insert_reading("readings_10min", _average(accum_10min, node="office"))
+                    db.insert_reading("readings_10min", util.average(accum_10min, node=config.OFFICE_NODE))
                     logger.info("Wrote 10min avg (%d readings)", len(accum_10min))
                 except Exception as e:
                     logger.error("DB 10min insert error: %s", e)
@@ -283,8 +278,8 @@ def sensor_loop(notifier: Notifier) -> None:
                         if s:
                             summaries[node] = s
                     if summaries:
-                        if "office" in summaries:
-                            db.insert_daily_summary(summaries["office"])
+                        if config.OFFICE_NODE in summaries:
+                            db.insert_daily_summary(summaries[config.OFFICE_NODE])
                         notifier.send_daily_summary(summaries)
                         logger.info("Daily summary sent for %s (%d nodes)", yesterday, len(summaries))
                 except Exception as e:
@@ -304,10 +299,7 @@ def sensor_loop(notifier: Notifier) -> None:
 
 
 def main() -> None:
-    logging.basicConfig(
-        level=logging.INFO,
-        format="%(asctime)s %(threadName)s %(levelname)s %(message)s",
-    )
+    util.setup_logging()
 
     db.init_db()
     notifier = Notifier()

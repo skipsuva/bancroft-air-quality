@@ -13,6 +13,18 @@ __pycache__/
 venv/
 env/
 
+# Tooling caches
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+
+# Editors
+.vscode/
+.idea/
+
+# Design references (Claude Design exports)
+*.dc.html
+
 # Logs
 *.log
 

@@ -1,0 +1,4 @@
+# Development / CI tooling (not needed at runtime on the Pi).
+-r requirements.txt
+pytest
+ruff

@@ -25,6 +25,8 @@ def create_app(state: dict, lock: threading.Lock) -> Flask:
             ens160_nodes=config.ENS160_NODES,
             pm_nodes=config.PM_NODES,
             eco2_nodes=config.ECO2_NODES,
+            status_thresholds=config.STATUS_THRESHOLDS,
+            stale_seconds=config.STALE_SECONDS,
         )
 
     @app.route("/room/<node>")
@@ -39,6 +41,8 @@ def create_app(state: dict, lock: threading.Lock) -> Flask:
             ens160_nodes=config.ENS160_NODES,
             pm_nodes=config.PM_NODES,
             eco2_nodes=config.ECO2_NODES,
+            status_thresholds=config.STATUS_THRESHOLDS,
+            stale_seconds=config.STALE_SECONDS,
         )
 
     @app.route("/api/now")
@@ -58,15 +62,10 @@ def create_app(state: dict, lock: threading.Lock) -> Flask:
             elif node in raw_current:
                 all_nodes[node] = raw_current[node]
 
-        # Legacy fallback: seed office from current_reading table or in-memory state
-        if "office" not in all_nodes:
-            row = db.get_current()
-            if row:
-                row.pop("id", None)
-                all_nodes["office"] = row
-            else:
-                with lock:
-                    all_nodes["office"] = dict(state)
+        # Fallback: seed office from in-memory state when the DB has no rows yet
+        if config.OFFICE_NODE not in all_nodes:
+            with lock:
+                all_nodes[config.OFFICE_NODE] = dict(state)
 
         return jsonify(all_nodes)
 

@@ -49,18 +49,6 @@ CREATE TABLE IF NOT EXISTS daily_summaries (
 )
 """
 
-_CREATE_CURRENT = """
-CREATE TABLE IF NOT EXISTS current_reading (
-    id           INTEGER PRIMARY KEY CHECK (id = 1),
-    timestamp    TEXT,
-    co2_ppm      REAL,
-    temp_c       REAL,
-    humidity_pct REAL,
-    pm25         REAL,
-    pm10         REAL
-)
-"""
-
 _CREATE_NODE_CURRENT = """
 CREATE TABLE IF NOT EXISTS node_current (
     node         TEXT PRIMARY KEY,
@@ -137,7 +125,6 @@ def init_db() -> None:
         con.execute(_CREATE_READINGS_1MIN)
         con.execute(_CREATE_READINGS_10MIN)
         con.execute(_CREATE_DAILY_SUMMARIES)
-        con.execute(_CREATE_CURRENT)
         con.execute(_CREATE_NODE_CURRENT)
         con.commit()
         _migrate(con)
@@ -151,21 +138,6 @@ def prune_old_readings() -> None:
     con = get_connection()
     try:
         con.execute("DELETE FROM readings_1min WHERE timestamp < ?", (cutoff,))
-        con.commit()
-    finally:
-        con.close()
-
-
-def upsert_current(reading: dict) -> None:
-    """Upsert the single-row office current reading (legacy, used by sensor_daemon)."""
-    con = get_connection()
-    try:
-        con.execute(
-            """INSERT OR REPLACE INTO current_reading
-               (id, timestamp, co2_ppm, temp_c, humidity_pct, pm25, pm10)
-               VALUES (1, :timestamp, :co2_ppm, :temp_c, :humidity_pct, :pm25, :pm10)""",
-            reading,
-        )
         con.commit()
     finally:
         con.close()
@@ -214,12 +186,15 @@ def insert_reading(table: str, reading: dict) -> None:
 
 
 def insert_daily_summary(summary: dict) -> None:
+    # pm25_avg / pm25_max columns remain in the schema for historic office rows
+    # (back when the office had a PMS5003) but are no longer written — no current
+    # node feeds PM data into the daily summary.
     con = get_connection()
     try:
         con.execute(
             """INSERT OR IGNORE INTO daily_summaries
-               (date, co2_avg, co2_max, co2_max_time, temp_avg, humidity_avg, pm25_avg, pm25_max)
-               VALUES (:date, :co2_avg, :co2_max, :co2_max_time, :temp_avg, :humidity_avg, :pm25_avg, :pm25_max)""",
+               (date, co2_avg, co2_max, co2_max_time, temp_avg, humidity_avg)
+               VALUES (:date, :co2_avg, :co2_max, :co2_max_time, :temp_avg, :humidity_avg)""",
             summary,
         )
         con.commit()
@@ -236,16 +211,6 @@ def get_latest_summary_date() -> "date | None":
         if row and row[0]:
             return _date.fromisoformat(row[0])
         return None
-    finally:
-        con.close()
-
-
-def get_current() -> dict | None:
-    """Return the office node's latest current reading (legacy fallback for /api/now)."""
-    con = get_connection()
-    try:
-        row = con.execute("SELECT * FROM current_reading WHERE id = 1").fetchone()
-        return dict(row) if row else None
     finally:
         con.close()
 
